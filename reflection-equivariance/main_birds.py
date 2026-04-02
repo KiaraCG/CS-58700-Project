@@ -6,14 +6,16 @@ import torch
 from data_loaders import get_loaders
 from V4DigitsCNN import V4DigitsCNN
 from StandardCNN import StandardCNN
+from V4EquivariantCNN import V4EquivariantCNN
+from V4BirdsCNN import V4BirdsCNN
 
 def get_arguments(argv):
-    parser = argparse.ArgumentParser(description='Training model on MNIST / SVHN / ColorMNIST')
+    parser = argparse.ArgumentParser(description='Training model on MNIST / SVHN / ColorMNIST / iNaturalist / iNaturalist + MNIST.')
     parser.add_argument('-m', '--model', type=str, default='v4cnn',
                         choices=['v4cnn', 'standard_cnn'],
                         help='Dataset to train/evaluate on (DEFAULT: v4cnn)')
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
-                        choices=['mnist', 'svhn', 'colormnist'],
+                        choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
                         help='Dataset to train/evaluate on (DEFAULT: mnist)')
     parser.add_argument('-e', '--n_epochs', type=int, default=50,
                         help='Number of epochs (DEFAULT: 50)')
@@ -58,16 +60,21 @@ def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Dataset : {args.dataset.upper()}")
+    print(f"Model   : {args.model}")
     print(f"Device  : {device}")
     print(f"Epochs  : {args.n_epochs}  |  Batch size: {args.batch_size}")
     print(f"Test reflections  : {args.reflect_images}")
     print("-" * 60)
 
     if args.model == 'v4cnn':
-        model = V4DigitsCNN(in_channels=in_channels).to(device)
-
+        if args.dataset in ['mnist', 'colormnist', 'svhn']:
+            model = V4DigitsCNN(in_channels=in_channels).to(device)
+        elif args.dataset == 'inaturalist':
+            model = V4BirdsCNN().to(device)
+        elif args.dataset == 'inaturalist_mnist':
+            model = V4EquivariantCNN().to(device)
     elif args.model == 'standard_cnn':
-        model = StandardCNN(dataset=args.dataset).to(device)
+        model = StandardCNN(args.dataset).to(device)
     else:
         raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
 
