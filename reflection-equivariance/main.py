@@ -73,6 +73,8 @@ def main():
             model = V4BirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
             model = V4EquivariantCNN(n_classes).to(device)
+        else:
+            raise ValueError(f"Dataset {args.model} is not supported.")
     elif args.model == 'standard_cnn':
         model = StandardCNN(args.dataset).to(device)
     else:
@@ -88,6 +90,7 @@ def main():
         total_train = 0
 
         for x, y in train_loader:
+            print("start")
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
@@ -95,13 +98,14 @@ def main():
             loss = criterion(outputs, y)
             loss.backward()
             optimizer.step()
-
+            print("lol")
             total_loss += loss.item()
 
             # Training accuracy on the fly to avoid double-passing the data
             _, predicted = outputs.max(1)
             total_train += y.size(0)
             correct_train += predicted.eq(y).sum().item()
+            print("done")
 
         train_acc = 100. * correct_train / total_train
         test_acc, correct_pc, total_pc = evaluate(model, test_loader, device, n_classes)

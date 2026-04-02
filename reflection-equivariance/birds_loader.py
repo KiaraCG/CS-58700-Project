@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import kagglehub
 from torch.utils.data import DataLoader, random_split
@@ -12,21 +13,51 @@ def download_data():
 
     os.makedirs(bird_data_dir, exist_ok=True)
 
-    import shutil
-
     for item in os.listdir(path):
         shutil.move(os.path.join(path, item), bird_data_dir)
 
     print("Dataset downloaded to:", bird_data_dir)
 
 
+def resize_images():
+    from PIL import Image
+
+    temp_dir = bird_data_dir + "_resized_tmp"
+    target_size = (224, 224)  # desired size for CNNs
+
+    # Make temporary output folder
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Walk through input folder (supports class subfolders)
+    for root, dirs, files in os.walk(bird_data_dir):
+        rel_path = os.path.relpath(root, bird_data_dir)
+        save_dir = os.path.join(temp_dir, rel_path)
+        os.makedirs(save_dir, exist_ok=True)
+
+        for file in files:
+            if file.lower().endswith(('.png', '.jpg', '.jpeg')):
+                img_path = os.path.join(root, file)
+                save_path = os.path.join(save_dir, file)
+
+                with Image.open(img_path) as img:
+                    img = img.convert("RGB")  # ensure 3 channels
+                    img = img.resize(target_size)  # resize
+                    img.save(save_path)
+
+    # --- Delete original folder ---
+    shutil.rmtree(bird_data_dir)
+
+    # --- Rename resized folder to original name ---
+    os.rename(temp_dir, bird_data_dir)
+
+    print("Resizing complete. Original images replaced with resized images.")
+
+
 def get_bird_data_loaders(args):
-    data_dir = bird_data_dir
     batch_size = args.batch_size
     reflect_images = getattr(args, 'reflect_images', False)
 
     train_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
                              (0.229, 0.224, 0.225))
@@ -35,7 +66,6 @@ def get_bird_data_loaders(args):
     test_transform = train_transform
     if reflect_images:
         test_transform = transforms.Compose([
-            transforms.Resize((224, 224)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406),
@@ -43,7 +73,7 @@ def get_bird_data_loaders(args):
         ])
 
     # --- Load full dataset ---
-    full_dataset = datasets.ImageFolder(data_dir, transform=train_transform)
+    full_dataset = datasets.ImageFolder(bird_data_dir, transform=train_transform)
 
     # --- Split dataset (80% train / 20% test) ---
     train_size = int(0.8 * len(full_dataset))
