@@ -4,6 +4,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 
+from birds_loader import get_bird_data_loaders
+
 
 # ---------------------------------------------------------------------------
 # ColorMNIST — IRM benchmark variant
@@ -110,7 +112,7 @@ def get_colormnist_loaders(batch_size, data_root='./data', test_transform=None):
     test_labels = raw_test.targets
     # test_samples = _make_environment(test_images, test_labels, 0.9, rng)
 
-    #-----------
+    # -----------
     env1_images, env1_labels = _make_environment(train_images[idx1], train_labels[idx1], 0.1, rng)
     env2_images, env2_labels = _make_environment(train_images[idx2], train_labels[idx2], 0.2, rng)
 
@@ -217,7 +219,8 @@ def get_loaders(args):
         train_loader, test_loader = get_colormnist_loaders(args.batch_size, test_transform=cm_test_transform)
         in_channels = 3
         n_classes = 10
-
+    elif dataset == 'inaturalist':
+        return get_bird_data_loaders(args)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
