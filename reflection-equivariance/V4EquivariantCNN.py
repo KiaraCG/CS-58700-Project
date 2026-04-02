@@ -6,6 +6,9 @@ from V4DigitsCNN import V4GroupConv
 
 
 class V4EquivariantCNN(nn.Module):
+    """
+    Reflection-equivariant CNN for joint bird species and digit classification.
+    """
     def __init__(self, num_bird_classes):
         super().__init__()
 

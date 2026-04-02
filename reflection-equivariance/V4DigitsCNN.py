@@ -44,6 +44,9 @@ class V4GroupConv(nn.Module):
 
 
 class V4DigitsCNN(nn.Module):
+    """
+    Reflection-equivariant CNN for MNIST/ColorMNIST/SVHN.
+    """
     def __init__(self, in_channels=1):
         super().__init__()
         # First layer "lifts" the image to the group (output channels = 8 * 4 = 32)

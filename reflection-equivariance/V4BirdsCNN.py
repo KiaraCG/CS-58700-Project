@@ -5,6 +5,9 @@ from V4DigitsCNN import V4GroupConv
 
 
 class V4BirdsCNN(nn.Module):
+    """
+    Reflection-equivariant CNN for iNaturalist Birds dataset. Uses V4GroupConv for lifting and group convolution.
+    """
     def __init__(self, num_classes):
         super().__init__()
 
