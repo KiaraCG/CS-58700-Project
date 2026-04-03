@@ -73,10 +73,8 @@ def main():
     if args.model == 'v4cnn':
         if args.dataset in ['mnist', 'colormnist', 'svhn']:
             model = V4DigitsCNN(in_channels=in_channels).to(device)
-        elif args.dataset == 'inaturalist':
+        elif args.dataset in ['inaturalist', 'inaturalist_mnist']:
             model = V4BirdsCNN(n_classes).to(device)
-        elif args.dataset == 'inaturalist_mnist':
-            raise ValueError(f"Not implemented!")
         else:
             raise ValueError(f"Dataset {args.dataset} is not supported for v4cnn.")
     elif args.model == 'standard_cnn':

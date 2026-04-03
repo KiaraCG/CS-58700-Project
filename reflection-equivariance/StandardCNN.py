@@ -21,12 +21,12 @@ class StandardCNN(nn.Module):
             in_channels = 3
             num_classes = 10
             input_size = (3, 32, 32)
-        elif dataset == 'inaturalist':
+        elif dataset in ['inaturalist', 'inaturalist_mnist']:
             in_channels = 3
             num_classes = 1000
             input_size = (3, 224, 224)
         else:
-            raise ValueError("Invalid dataset. Should be one of ['mnist', 'colormnist', 'svhn'].")
+            raise ValueError("Invalid dataset. Should be one of ['mnist', 'colormnist', 'svhn', 'inaturalist', 'inaturalist_mnist'].")
 
         self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
