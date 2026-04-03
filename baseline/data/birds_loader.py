@@ -120,6 +120,4 @@ def get_bird_data_loaders(args):
     in_channels = 3
     n_classes = len(full_dataset.classes)
 
-    #### TODO RESTRICT TO THE ESTABLISHED 10 CLASSES 
-
     return train_loader, test_loader, in_channels, n_classes
