@@ -3,16 +3,19 @@ import sys
 
 import torch
 
-from data_loaders import get_loaders
-from V4DigitsCNN import V4DigitsCNN
 from StandardCNN import StandardCNN
+from StandardResNet import StandardResNet
 from V4BirdsCNN import V4BirdsCNN
+from V4DigitsCNN import V4DigitsCNN
 from V4EquivariantResNet import V4EquivariantResNet
+from data_loaders import get_loaders
+
 
 def get_arguments(argv):
-    parser = argparse.ArgumentParser(description='Training model on MNIST / SVHN / ColorMNIST / iNaturalist / iNaturalist + MNIST.')
+    parser = argparse.ArgumentParser(
+        description='Training model on MNIST / SVHN / ColorMNIST / iNaturalist / iNaturalist + MNIST.')
     parser.add_argument('-m', '--model', type=str, default='v4cnn',
-                        choices=['v4cnn', 'standard_cnn', 'resnet'],
+                        choices=['v4cnn', 'standard_cnn', 'v4resnet', 'standard_resnet'],
                         help='Dataset to train/evaluate on (DEFAULT: v4cnn)')
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
@@ -55,6 +58,7 @@ def evaluate(model, loader, device, n_classes=10):
 
     return 100 * correct / total, correct_per_class, total_per_class
 
+
 def main():
     train_loader, test_loader, in_channels, n_classes = get_loaders(args)
 
@@ -77,11 +81,13 @@ def main():
             raise ValueError(f"Dataset {args.dataset} is not supported for v4cnn.")
     elif args.model == 'standard_cnn':
         model = StandardCNN(args.dataset).to(device)
-    elif args.model == 'resnet':
-        if args.dataset == 'inaturalist':
+    elif args.dataset == 'inaturalist':
+        if args.model == 'v4resnet':
             model = V4EquivariantResNet(n_classes)
+        elif args.model == 'standard_resnet':
+            model = StandardResNet(n_classes)
         else:
-            raise ValueError(f"Dataset {args.dataset} is not supported for resnet.")
+            raise ValueError(f"Dataset {args.model} is not supported for inaturalist.")
     else:
         raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
 
