@@ -83,9 +83,9 @@ def main():
         model = StandardCNN(args.dataset).to(device)
     elif args.dataset == 'inaturalist':
         if args.model == 'v4resnet':
-            model = V4EquivariantResNet(n_classes)
+            model = V4EquivariantResNet(n_classes).to(device)
         elif args.model == 'standard_resnet':
-            model = StandardResNet(n_classes)
+            model = StandardResNet(n_classes).to(device)
         else:
             raise ValueError(f"Dataset {args.model} is not supported for inaturalist.")
     else:
