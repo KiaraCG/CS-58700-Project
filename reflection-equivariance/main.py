@@ -83,6 +83,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
 
+    print("Starting training...")
     for epoch in range(args.n_epochs):
         model.train()
         total_loss = 0
@@ -90,7 +91,6 @@ def main():
         total_train = 0
 
         for x, y in train_loader:
-            print("start")
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
@@ -98,14 +98,13 @@ def main():
             loss = criterion(outputs, y)
             loss.backward()
             optimizer.step()
-            print("lol")
+
             total_loss += loss.item()
 
             # Training accuracy on the fly to avoid double-passing the data
             _, predicted = outputs.max(1)
             total_train += y.size(0)
             correct_train += predicted.eq(y).sum().item()
-            print("done")
 
         train_acc = 100. * correct_train / total_train
         test_acc, correct_pc, total_pc = evaluate(model, test_loader, device, n_classes)

@@ -5,7 +5,7 @@ import kagglehub
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
-bird_data_dir = "/Users/kiarachau/PycharmProjects/data/inatbirds"
+bird_data_dir = "/scratch/scholar/jchaugar/inatbirds"
 
 
 def download_data():
