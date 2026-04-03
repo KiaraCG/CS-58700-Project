@@ -2,10 +2,10 @@ import os
 import shutil
 
 import kagglehub
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import datasets, transforms
 
-bird_data_dir = "/scratch/scholar/jchaugar/inatbirds/bird_train"
+bird_data_dir = "/scratch/scholar/jchaugar/inatbirds/birds_train_small"
 
 
 def download_data():
@@ -53,6 +53,19 @@ def resize_images():
     print("Resizing complete. Original images replaced with resized images.")
 
 
+class TransformDataset(Dataset):
+    def __init__(self, subset, transform):
+        self.subset = subset
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.subset)
+
+    def __getitem__(self, idx):
+        x, y = self.subset[idx]
+        return self.transform(x), y
+
+
 def get_bird_data_loaders(args):
     batch_size = args.batch_size
     reflect_images = getattr(args, 'reflect_images', False)
@@ -73,7 +86,7 @@ def get_bird_data_loaders(args):
         ])
 
     # --- Load full dataset ---
-    full_dataset = datasets.ImageFolder(bird_data_dir, transform=train_transform)
+    full_dataset = datasets.ImageFolder(bird_data_dir)
 
     # --- Split dataset (80% train / 20% test) ---
     train_size = int(0.8 * len(full_dataset))
@@ -81,7 +94,8 @@ def get_bird_data_loaders(args):
     train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
 
     # --- Apply test transforms ---
-    test_dataset.dataset.transform = test_transform
+    train_dataset = TransformDataset(train_dataset, transform=train_transform)
+    test_dataset = TransformDataset(test_dataset, transform=test_transform)
 
     # --- Create DataLoaders ---
     train_loader = DataLoader(
