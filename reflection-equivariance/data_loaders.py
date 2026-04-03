@@ -6,6 +6,9 @@ from torchvision import datasets, transforms
 
 from birds_loader import get_bird_data_loaders
 
+combined_data_folder = "/scratch/scholar/jchaugar/data"
+bird_data_dir = "/scratch/scholar/jchaugar/birds_train_small"
+
 
 # ---------------------------------------------------------------------------
 # ColorMNIST — IRM benchmark variant
@@ -220,7 +223,10 @@ def get_loaders(args):
         in_channels = 3
         n_classes = 10
     elif dataset == 'inaturalist':
-        return get_bird_data_loaders(args)
+        return get_bird_data_loaders(args, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225),
+                                     data_dir=bird_data_dir)
+    elif dataset == 'inaturalist_mnist':
+        return get_bird_data_loaders(args, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), data_dir=combined_data_folder)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 
