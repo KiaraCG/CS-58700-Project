@@ -5,10 +5,8 @@ import kagglehub
 from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import datasets, transforms
 
-bird_data_dir = "/scratch/scholar/jchaugar/inatbirds/birds_train_small"
 
-
-def download_data():
+def download_data(bird_data_dir):
     path = kagglehub.dataset_download("sharansmenon/inat2021birds")
 
     os.makedirs(bird_data_dir, exist_ok=True)
@@ -19,7 +17,7 @@ def download_data():
     print("Dataset downloaded to:", bird_data_dir)
 
 
-def resize_images():
+def resize_images(bird_data_dir):
     from PIL import Image
 
     temp_dir = bird_data_dir + "_resized_tmp"
@@ -66,27 +64,25 @@ class TransformDataset(Dataset):
         return self.transform(x), y
 
 
-def get_bird_data_loaders(args):
+def get_bird_data_loaders(args, mean, std, data_dir):
     batch_size = args.batch_size
     reflect_images = getattr(args, 'reflect_images', False)
 
     train_transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize((0.485, 0.456, 0.406),
-                             (0.229, 0.224, 0.225))
+        transforms.Normalize(mean, std)
     ])
 
     test_transform = train_transform
     if reflect_images:
         test_transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
+            transforms.RandomVerticalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize((0.485, 0.456, 0.406),
-                                 (0.229, 0.224, 0.225))
-        ])
+            transforms.Normalize(mean, std)])
 
     # --- Load full dataset ---
-    full_dataset = datasets.ImageFolder(bird_data_dir)
+    full_dataset = datasets.ImageFolder(data_dir)
 
     # --- Split dataset (80% train / 20% test) ---
     train_size = int(0.8 * len(full_dataset))
