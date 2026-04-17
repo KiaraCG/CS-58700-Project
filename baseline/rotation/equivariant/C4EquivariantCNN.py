@@ -23,24 +23,29 @@ class C4EquivariantCNN(nn.Module):
 
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        # Separate heads
-        self.bird_head = nn.Linear(128 * 4, num_bird_classes)
+        self.bird_head  = nn.Linear(128 * 4, num_bird_classes)
         self.digit_head = nn.Linear(128 * 4, 10)
 
-    def forward(self, x, task):
+    def forward(self, x, tasks):
         x = F.relu(self.lift(x))
         x = self.block1(x)
         x = self.pool1(x)
-
         x = self.block2(x)
         x = self.pool2(x)
-
         x = self.block3(x)
-
         x = self.pool(x)
-        x = x.view(x.size(0), -1)
+        x = x.view(x.size(0), -1)   # [B, 512]
 
-        if task == "bird":
-            return self.bird_head(x)
-        else:
-            return self.digit_head(x)
+        bird_mask  = torch.tensor([t == "bird"  for t in tasks], device=x.device)
+        digit_mask = torch.tensor([t == "digit" for t in tasks], device=x.device)
+
+        out = torch.zeros(x.size(0), max(self.bird_head.out_features,
+                                          self.digit_head.out_features),
+                          device=x.device)
+
+        if bird_mask.any():
+            out[bird_mask,  :self.bird_head.out_features]  = self.bird_head(x[bird_mask])
+        if digit_mask.any():
+            out[digit_mask, :self.digit_head.out_features] = self.digit_head(x[digit_mask])
+
+        return out, bird_mask, digit_mask

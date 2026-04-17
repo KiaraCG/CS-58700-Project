@@ -3,8 +3,9 @@ import random
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
+from torch.utils.data import Dataset, DataLoader, random_split, Subset, ConcatDataset
 
-from .birds_loader import get_bird_data_loaders
+from .birds_loader import get_bird_data_loaders, bird_data_dir, RANDOM_SEED,TransformDataset
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +138,84 @@ def get_colormnist_loaders(batch_size, data_root='./data', train_transform=None,
     )
     return train_loader, test_loader
 
+class MultiTaskDataset(Dataset):
+    """Wraps a dataset and tags every sample with a task string."""
+    def __init__(self, ds, task: str):
+        self.ds   = ds
+        self.task = task
+
+    def __len__(self):
+        return len(self.ds)
+
+    def __getitem__(self, idx):
+        x, y = self.ds[idx]
+        return x, y, self.task   # (image, original label, task)
+
+
+def get_bird_mnist_data_loaders(args):
+    batch_size     = args.batch_size
+    reflect_images = getattr(args, 'reflect_images', False)
+
+    bird_transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225)),
+    ])
+
+    mnist_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.Grayscale(num_output_channels=3),
+        transforms.ToTensor(),
+        transforms.Normalize((0.485, 0.456, 0.406),
+                             (0.229, 0.224, 0.225)),
+    ])
+
+    if reflect_images:
+        flip = transforms.RandomHorizontalFlip(p=1.0)
+        bird_transform  = transforms.Compose([flip, bird_transform])
+        mnist_transform = transforms.Compose([flip, mnist_transform])
+
+    # --- Birds (keeps same species every run via RANDOM_SEED) ---
+    full_birds = datasets.ImageFolder(bird_data_dir)
+    n_bird_classes = len(full_birds.classes)
+    train_size = int(0.8 * len(full_birds))
+    test_size  = len(full_birds) - train_size
+    generator  = torch.Generator().manual_seed(RANDOM_SEED)
+    bird_train, bird_test = random_split(full_birds, [train_size, test_size],
+                                         generator=generator)
+    bird_train = MultiTaskDataset(TransformDataset(bird_train, bird_transform), task="bird")
+    bird_test  = MultiTaskDataset(TransformDataset(bird_test,  bird_transform), task="bird")
+
+    # --- MNIST (keeps original digit labels 0-9) ---
+    mnist_train = MultiTaskDataset(
+        datasets.MNIST('./data', train=True,  download=True, transform=mnist_transform),
+        task="digit"
+    )
+    mnist_test = MultiTaskDataset(
+        datasets.MNIST('./data', train=False, download=True, transform=mnist_transform),
+        task="digit"
+    )
+
+    # --- Subsample MNIST to match bird counts ---
+    def subsample(ds, n):
+        idx = random.Random(RANDOM_SEED).sample(range(len(ds)), min(n, len(ds)))
+        return Subset(ds, idx)
+
+    mnist_train = subsample(mnist_train, len(bird_train))
+    mnist_test  = subsample(mnist_test,  len(bird_test))
+
+    train_dataset = ConcatDataset([bird_train, mnist_train])
+    test_dataset  = ConcatDataset([bird_test,  mnist_test])
+
+    print(f"[inaturalist_mnist] train {len(train_dataset)} | test {len(test_dataset)}"
+          f" | bird_classes={n_bird_classes} | digit_classes=10")
+
+    loader_kwargs = dict(batch_size=batch_size, num_workers=4,
+                         pin_memory=True, persistent_workers=True)
+    train_loader = DataLoader(train_dataset, shuffle=True,  **loader_kwargs)
+    test_loader  = DataLoader(test_dataset,  shuffle=False, **loader_kwargs)
+
+    return train_loader, test_loader, 3, (n_bird_classes, 10)
 
 def random_flip(x):
     a = random.random()
@@ -260,6 +339,8 @@ def get_loaders(args):
         n_classes = 10
     elif dataset == 'inaturalist':
         return get_bird_data_loaders(args)
+    elif dataset == 'inaturalist_mnist':
+        return get_bird_mnist_data_loaders(args)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 

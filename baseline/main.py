@@ -46,29 +46,56 @@ def get_arguments(argv):
     return args
 
 
-def evaluate(model, loader, device, n_classes=10):
+def evaluate(model, loader, device, n_classes=10, dataset=None):
     model.eval()
     correct = 0
     total = 0
 
-    correct_per_class = [0] * n_classes
-    total_per_class = [0] * n_classes
+    if isinstance(n_classes, tuple):
+        n_bird_classes, n_digit_classes = n_classes
+        total_classes = n_bird_classes + n_digit_classes
+    else:
+        n_bird_classes = None
+        total_classes = n_classes
+
+    correct_per_class = [0] * total_classes
+    total_per_class   = [0] * total_classes
 
     with torch.no_grad():
-        for x, y in loader:
+        for batch in loader:
+            if dataset == 'inaturalist_mnist':
+                x, y, tasks = batch
+            else:
+                x, y = batch
+                tasks = None
+
             x, y = x.to(device), y.to(device)
 
-            outputs = model(x)
-            preds = outputs.argmax(dim=1)
+            if tasks is not None:
+                out, bird_mask, digit_mask = model(x, tasks)
 
-            correct += (preds == y).sum().item()
-            total += y.size(0)
+                preds = torch.empty(x.size(0), dtype=torch.long, device=device)
+                if bird_mask.any():
+                    preds[bird_mask]  = out[bird_mask, :n_bird_classes].max(1).indices
+                if digit_mask.any():
+                    preds[digit_mask] = out[digit_mask, :10].max(1).indices
+
+                # Offset digit labels so they don't collide with bird class indices
+                y_offset = y.clone()
+                y_offset[digit_mask] += n_bird_classes
+                preds[digit_mask]    += n_bird_classes
+            else:
+                out = model(x)
+                preds    = out.argmax(dim=1)
+                y_offset = y
+
+            correct += (preds == y_offset).sum().item()
+            total   += y.size(0)
 
             for i in range(len(y)):
-                label = y[i].item()
-                pred = preds[i].item()
+                label = y_offset[i].item()
                 total_per_class[label] += 1
-                if pred == label:
+                if preds[i].item() == label:
                     correct_per_class[label] += 1
 
     return 100 * correct / total, correct_per_class, total_per_class
@@ -142,7 +169,8 @@ def main():
         elif args.dataset == 'inaturalist':
             model = C4InvariantBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
-            model = C4InvariantCNN(n_classes).to(device)
+            n_bird_classes, _ = n_classes
+            model = C4InvariantCNN(n_bird_classes).to(device)
         else:
             raise ValueError(f"Dataset {args.model} is not supported.")
     elif args.model == 'c4_equivariant':
@@ -151,7 +179,8 @@ def main():
         elif args.dataset == 'inaturalist':
             model = C4EquivariantBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
-            model = C4EquivariantCNN(n_classes,args.task).to(device)
+            n_bird_classes, _ = n_classes
+            model = C4EquivariantCNN(n_bird_classes, args.task).to(device)
         else:
             raise ValueError(f"Dataset {args.model} is not supported.")
     # elif args.model == 'v4_invariant':
@@ -189,25 +218,46 @@ def main():
         correct_train = 0
         total_train = 0
 
-        for x, y in train_loader:
+        for batch in train_loader:
+            if args.dataset == 'inaturalist_mnist':
+                x, y, tasks = batch
+            else:
+                x, y = batch
+                tasks = None
+
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(x)
-            loss = criterion(outputs, y)
+
+            if tasks is not None:
+                out, bird_mask, digit_mask = model(x, tasks)
+
+                loss = torch.tensor(0.0, device=device)
+                if bird_mask.any():
+                    loss += criterion(out[bird_mask, :n_bird_classes], y[bird_mask])
+                if digit_mask.any():
+                    loss += criterion(out[digit_mask, :10], y[digit_mask])
+
+                # Accuracy: pick the right slice per sample
+                predicted = torch.empty(x.size(0), dtype=torch.long, device=device)
+                if bird_mask.any():
+                    predicted[bird_mask]  = out[bird_mask, :n_bird_classes].max(1).indices
+                if digit_mask.any():
+                    predicted[digit_mask] = out[digit_mask, :10].max(1).indices
+            else:
+                out = model(x)
+                loss = criterion(out, y)
+                predicted = out.max(1).indices
+
             loss.backward()
             optimizer.step()
 
-            total_loss += loss.item()
-
-            # Training accuracy on the fly to avoid double-passing the data
-            _, predicted = outputs.max(1)
-            total_train += y.size(0)
+            total_loss    += loss.item()
+            total_train   += y.size(0)
             correct_train += predicted.eq(y).sum().item()
 
         train_acc = 100. * correct_train / total_train
-        test_acc, correct_pc, total_pc = evaluate(model, test_loader, device, n_classes)
-
+        test_acc, correct_pc, total_pc = evaluate(model, test_loader, device, n_classes, dataset=args.dataset)
         print(f"Epoch {epoch + 1:>3}: Loss={total_loss:.4f}  "
               f"Train={train_acc:.2f}%  Test={test_acc:.2f}%")
 

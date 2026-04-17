@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -28,21 +29,28 @@ class C4InvariantCNN(nn.Module):
         self.bird_head = nn.Linear(128, num_bird_classes)
         self.digit_head = nn.Linear(128, 10)
 
-    def forward(self, x, task):
+    def forward(self, x, tasks):
         x = F.relu(self.lift(x))
         x = self.block1(x)
         x = self.pool1(x)
-
         x = self.block2(x)
         x = self.pool2(x)
-
         x = self.block3(x)
-
         x = self.pool(x)
-        x = x.view(x.size(0), -1)              # [B, 512]  ← need this first
-        x = x.view(x.size(0), 4, 128).mean(dim=1)          # [B, 128]  ← split group dim
-     
-        if task == "bird":
-            return self.bird_head(x)
-        else:
-            return self.digit_head(x)
+        x = x.view(x.size(0), -1)
+        x = x.view(x.size(0), 4, 128).mean(dim=1)   # [B, 128]
+
+        # Route each sample to the correct head
+        out = torch.zeros(x.size(0), max(self.bird_head.out_features,
+                                        self.digit_head.out_features),
+                        device=x.device)
+
+        bird_mask  = torch.tensor([t == "bird"  for t in tasks], device=x.device)
+        digit_mask = torch.tensor([t == "digit" for t in tasks], device=x.device)
+
+        if bird_mask.any():
+            out[bird_mask, :self.bird_head.out_features] = self.bird_head(x[bird_mask])
+        if digit_mask.any():
+            out[digit_mask, :self.digit_head.out_features] = self.digit_head(x[digit_mask])
+
+        return out, bird_mask, digit_mask
