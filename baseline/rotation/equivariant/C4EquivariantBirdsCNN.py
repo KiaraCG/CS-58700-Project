@@ -5,7 +5,7 @@ from ..C4Block import C4Block
 from ..C4GroupConv import C4GroupConv
 
 
-class C4BirdsCNN(nn.Module):
+class C4EquivariantBirdsCNN(nn.Module):
     """
     Rotation-equivariant CNN for iNaturalist Birds dataset. Uses C4GroupConv for lifting and group convolution.
     """

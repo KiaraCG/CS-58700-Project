@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 
-from birds_loader import get_bird_data_loaders
+from .birds_loader import get_bird_data_loaders
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +81,7 @@ class ColorMNISTDataset(Dataset):
         return image, label
 
 
-def get_colormnist_loaders(batch_size, data_root='./data', test_transform=None):
+def get_colormnist_loaders(batch_size, data_root='./data', train_transform=None, test_transform=None):
     """
     Returns (train_loader, test_loader) for the IRM ColorMNIST benchmark.
     Train = env1 (e=0.1) + env2 (e=0.2) concatenated.
@@ -122,7 +122,7 @@ def get_colormnist_loaders(batch_size, data_root='./data', test_transform=None):
     test_images_all, test_labels_all = _make_environment(test_images, test_labels, 0.9, rng)
 
     train_loader = DataLoader(ColorMNISTDataset(
-        train_images_all, train_labels_all),
+        train_images_all, train_labels_all, transform=train_transform),
         batch_size=batch_size, shuffle=True,
         num_workers=4,  # Parallel data loading
         pin_memory=True,  # Faster transfer to GPU
@@ -145,12 +145,22 @@ def random_flip(x):
     if a < 0.67:
         return torch.flip(x, dims=[-2])
     return x
-
+    
+def random_rotate(x):
+    angle = random.choice([0, 90, 180, 270])
+    return transforms.functional.rotate(x, angle)
 
 def get_loaders(args):
     dataset = args.dataset.lower()
 
     if dataset == 'mnist':
+        # if args.model == 'c4_equivariant':
+        #     train_transform = transforms.Compose([
+        #         transforms.ToTensor(),
+        #         transforms.Lambda(random_rotate),
+        #         transforms.Normalize((0.1307,), (0.3081,))
+        #     ])
+        # else:
         train_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
@@ -161,6 +171,13 @@ def get_loaders(args):
             test_transform = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Lambda(random_flip),
+                transforms.Normalize((0.1307,), (0.3081,))
+            ])
+
+        if args.rotate_images:
+            test_transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Lambda(random_rotate),
                 transforms.Normalize((0.1307,), (0.3081,))
             ])
 
@@ -185,6 +202,14 @@ def get_loaders(args):
         # SVHN: 32×32 RGB, 10 classes (digit 0–9; torchvision maps label 10 → 0)
         mean = (0.4377, 0.4438, 0.4728)
         std = (0.1980, 0.2010, 0.1970)
+
+        # if args.model == 'c4_equivariant':
+        #     train_transform = transforms.Compose([
+        #         transforms.ToTensor(),
+        #         transforms.Lambda(random_rotate),
+        #         transforms.Normalize(mean, std)
+        #     ])
+        # else:   
         train_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean, std)
@@ -194,6 +219,12 @@ def get_loaders(args):
             test_transform = transforms.Compose([
                 transforms.ToTensor(),
                 transforms.Lambda(random_flip),
+                transforms.Normalize(mean, std)
+            ])
+        if args.rotate_images:
+            test_transform = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Lambda(random_rotate),
                 transforms.Normalize(mean, std)
             ])
 
@@ -215,8 +246,16 @@ def get_loaders(args):
         n_classes = 10
 
     elif dataset == 'colormnist':
-        cm_test_transform = transforms.Lambda(random_flip) if args.reflect_images else None
-        train_loader, test_loader = get_colormnist_loaders(args.batch_size, test_transform=cm_test_transform)
+        cm_reflect_transform = transforms.Lambda(random_flip) if args.reflect_images else None
+        cm_rotate_transform  = transforms.Lambda(random_rotate) if args.rotate_images else None
+
+        # equivariant needs augmentation, invariant doesn't
+        # cm_train_transform = cm_rotate_transform if args.model == 'c4_equivariant' else None
+        cm_train_transform = None
+        # pick whichever is active
+        cm_test_transform = cm_reflect_transform or cm_rotate_transform
+
+        train_loader, test_loader = get_colormnist_loaders(args.batch_size, train_transform = cm_train_transform,test_transform=cm_test_transform)
         in_channels = 3
         n_classes = 10
     elif dataset == 'inaturalist':

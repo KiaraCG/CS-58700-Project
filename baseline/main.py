@@ -2,11 +2,22 @@ import argparse
 import sys
 
 import torch
+import torch.nn.functional as F
 
 from data.data_loaders import get_loaders
-from rotation.invariant import C4InvariantDigitsCNN, C4InvariantBirdsCNN, C4InvariantCNN
+from standard.StandardCNN import StandardCNN
+# from rotation.equivariant.C4EquivariantCNN_HWK import GEquivariantCNN
+from rotation.invariant.C4InvariantDigitsCNN import C4InvariantDigitsCNN
+from rotation.invariant.C4InvariantBirdsCNN import C4InvariantBirdsCNN
+from rotation.invariant.C4InvariantCNN import C4InvariantCNN
+from rotation.equivariant.C4EquivariantDigitsCNN import C4EquivariantDigitsCNN
+from rotation.equivariant.C4EquivariantBirdsCNN import C4EquivariantBirdsCNN
+from rotation.equivariant.C4EquivariantCNN import C4EquivariantCNN
+# from rotation.invariant.V4InvariantDigitsCNN import V4InvariantDigitsCNN
+# from rotation.invariant.V4InvariantBirdsCNN import V4InvariantBirdsCNN
+# from rotation.invariant.V4EquivariantCNN import V4EquivariantCNN
+
 from standard import StandardCNN
-from rotation.equivariant import C4EquivariantDigitsCNN, C4EquivariantBirdsCNN, C4EquivariantCNN
 
 
 def get_arguments(argv):
@@ -28,6 +39,8 @@ def get_arguments(argv):
                         help='Batch size (DEFAULT: 256)')
     parser.add_argument("--reflect_images", action="store_true",
                         help="Apply random reflections at test time.")
+    parser.add_argument("--rotate_images", action="store_true",
+                    help="Apply random rotations at test time.")
 
     args = parser.parse_args(argv)
     return args
@@ -60,33 +73,85 @@ def evaluate(model, loader, device, n_classes=10):
 
     return 100 * correct / total, correct_per_class, total_per_class
 
+def test_equivariance(model, device):
+    model.eval()
+    x = torch.randn(1, 1, 28, 28).to(device)
+    
+    with torch.no_grad():
+        out_0   = model(x)
+        out_90  = model(torch.rot90(x, 1, [-2, -1]))
+        out_180 = model(torch.rot90(x, 2, [-2, -1]))
+        out_270 = model(torch.rot90(x, 3, [-2, -1]))
+    
+    print("out_0  :", out_0)
+    print("out_90 :", out_90)
+    print("out_180:", out_180)
+    print("out_270:", out_270)
+    print("max diff 0 vs 90 :", (out_0 - out_90).abs().max().item())
+    print("max diff 0 vs 180:", (out_0 - out_180).abs().max().item())
+    print("max diff 0 vs 270:", (out_0 - out_270).abs().max().item())
+
+def test_equivariance_per_layer(model, device):
+    model.eval()
+    x = torch.randn(1, 1, 28, 28).to(device)
+    x_90 = torch.rot90(x, 1, [-2, -1])
+
+    def correct_for_group(tensor, n_rotations=1):
+        """Rotate spatially and cycle group channels."""
+        t = torch.rot90(tensor, -n_rotations, [-2, -1])
+        B, C, H, W = t.shape
+        n_semantic = C // 4
+        t = t.view(B, n_semantic, 4, H, W)
+        t = torch.roll(t, n_rotations, dims=2)
+        t = t.view(B, C, H, W)
+        return t
+
+    with torch.no_grad():
+        # after conv1
+        out1    = F.relu(model.conv1(x))
+        out1_90 = F.relu(model.conv1(x_90))
+        print("conv1 diff:", (out1 - correct_for_group(out1_90)).abs().max().item())
+
+        # after conv2
+        out2    = F.relu(model.conv2(out1))
+        out2_90 = F.relu(model.conv2(out1_90))
+        print("conv2 diff:", (out2 - correct_for_group(out2_90)).abs().max().item())
+
+        # after conv3
+        out3    = F.relu(model.conv3(out2))
+        out3_90 = F.relu(model.conv3(out2_90))
+        print("conv3 diff:", (out3 - correct_for_group(out3_90)).abs().max().item())
+
 def main():
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 1. define device first
+    
     train_loader, test_loader, in_channels, n_classes = get_loaders(args)
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Dataset : {args.dataset.upper()}")
     print(f"Model   : {args.model}")
     print(f"Device  : {device}")
     print(f"Epochs  : {args.n_epochs}  |  Batch size: {args.batch_size}")
     print(f"Test reflections  : {args.reflect_images}")
+    print(f"Test rotations    : {args.rotate_images}")
     print("-" * 60)
 
     if args.model == 'c4_invariant':
         if args.dataset in ['mnist', 'colormnist', 'svhn']:
-            model = C4InvariantDigitsCNN(in_channels=in_channels)
+            model = C4InvariantDigitsCNN(in_channels=in_channels).to(device)
         elif args.dataset == 'inaturalist':
-            model = C4InvariantBirdsCNN(n_classes)
+            model = C4InvariantBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
-            model = C4EquivariantCNN(n_classes).to(device)
+            model = C4InvariantCNN(n_classes).to(device)
         else:
             raise ValueError(f"Dataset {args.model} is not supported.")
     elif args.model == 'c4_equivariant':
         if args.dataset in ['mnist', 'colormnist', 'svhn']:
-            model = C4EquivariantDigitsCNN(in_channels=in_channels)
+            model = C4EquivariantDigitsCNN(in_channels=in_channels).to(device)
         elif args.dataset == 'inaturalist':
-            model = C4EquivariantBirdsCNN(n_classes)
+            model = C4EquivariantBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
-            model = C4EquivariantCNN(n_classes).to(device)
+            model = C4EquivariantCNN(n_classes,args.task).to(device)
         else:
             raise ValueError(f"Dataset {args.model} is not supported.")
     # elif args.model == 'v4_invariant':
@@ -107,13 +172,16 @@ def main():
     #         model = V4EquivariantCNN(n_classes).to(device)
     #     else:
     #         raise ValueError(f"Dataset {args.model} is not supported.")
-        
+    elif args.model == 'standard_cnn':
+        model = StandardCNN(args.dataset).to(device)
     else:
         raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
-
+    # call before training
+    # test_equivariance(model, device)
+    # test_equivariance_per_layer(model, device) 
     print("Starting training...")
     for epoch in range(args.n_epochs):
         model.train()

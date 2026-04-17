@@ -40,9 +40,8 @@ class C4InvariantCNN(nn.Module):
 
         x = self.pool(x)
         x = x.view(x.size(0), -1)              # [B, 512]  ← need this first
-        x = x.view(x.size(0), 128, 4)          # [B, 128, 4]  ← split group dim
-        x = x.mean(dim=2)                       # [B, 128]     ← pool over group
-
+        x = x.view(x.size(0), 4, 128).mean(dim=1)          # [B, 128]  ← split group dim
+     
         if task == "bird":
             return self.bird_head(x)
         else:

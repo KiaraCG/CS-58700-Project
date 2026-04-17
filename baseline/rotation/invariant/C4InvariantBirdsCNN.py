@@ -37,6 +37,6 @@ class C4InvariantBirdsCNN(nn.Module):
         x = self.block3(x)
 
         x = self.pool(x)
-        x = x.view(x.size(0), 128, 4)          # [B, 128, 4]  ← split group dim
-        x = x.mean(dim=2)                       # [B, 128]     ← pool over group
+        x = x.flatten(1)                        # [B, 512]  ← missing this
+        x = x.view(x.size(0), 4, 128).mean(1)  # [B, 128]
         return self.fc(x)

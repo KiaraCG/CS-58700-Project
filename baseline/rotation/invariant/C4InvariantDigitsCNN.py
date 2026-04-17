@@ -10,21 +10,20 @@ class C4InvariantDigitsCNN(nn.Module):
     """
     def __init__(self, in_channels=1):
         super().__init__()
-        # First layer "lifts" the image to the group (output channels = 8 * 4 = 32)
-        self.conv1 = C4GroupConv(in_channels, 8, 3, 1, lifting=True)
-        # Subsequent layers process group-data (input 32, output 16 * 4 = 64)
-        self.conv2 = C4GroupConv(8, 16, 3, 1, lifting=False)
+        self.conv1 = C4GroupConv(in_channels, 8,  3, 1, lifting=True)   # → 32ch
+        self.conv2 = C4GroupConv(8,  16, 3, 1, lifting=False)           # → 64ch
+        self.conv3 = C4GroupConv(16, 32, 3, 1, lifting=False)           # → 128ch
 
         self.pool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(16, 10)
+        self.fc   = nn.Linear(32, 10)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
 
-        # To get an invariant classification, we must pool over spatial AND group dims
-        # x shape is (B, 64, H, W). We reshaped to pool over the 4 transformations.
-        x = self.pool(x)  # (B, 64, 1, 1)
-        x = x.view(x.size(0), 128, 4)          # [B, 128, 4]  ← split group dim
-        x = x.mean(dim=2)                       # [B, 128]     ← pool over group
+        x = self.pool(x).flatten(1)             # [B, 128]
+        # print(x.shape)                        # should be [B, 128]
+        x = x.view(x.size(0), 4, 32).mean(1)
+        # print(x.shape)                        # should be [B, 32]
         return self.fc(x)

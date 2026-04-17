@@ -69,6 +69,7 @@ class TransformDataset(Dataset):
 def get_bird_data_loaders(args):
     batch_size = args.batch_size
     reflect_images = getattr(args, 'reflect_images', False)
+    rotate_images = getattr(args, 'rotate_images', False)
 
     train_transform = transforms.Compose([
         transforms.ToTensor(),
@@ -80,6 +81,13 @@ def get_bird_data_loaders(args):
     if reflect_images:
         test_transform = transforms.Compose([
             transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.485, 0.456, 0.406),
+                                 (0.229, 0.224, 0.225))
+        ])
+    if rotate_images:
+        test_transform = transforms.Compose([
+            transforms.RandomRotation(180),   # full 360 range
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406),
                                  (0.229, 0.224, 0.225))
