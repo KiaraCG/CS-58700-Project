@@ -4,83 +4,98 @@ import torch.nn.functional as F
 
 
 class ConditionalD4Conv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=1):
+    def __init__(self, in_ch, out_ch, k=3, stride=1, padding=1):
         super().__init__()
-        self.stride = stride
-        self.padding = padding
-        # Standard kernel weights
-        self.weight = nn.Parameter(torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+        self.in_ch, self.out_ch = in_ch, out_ch
+        self.stride, self.padding = stride, padding
+        self.weight = nn.Parameter(torch.Tensor(out_ch, in_ch, k, k))
         nn.init.kaiming_uniform_(self.weight)
 
-    def get_d4_kernels(self, w):
-        """Generates all 8 D4 transformations of the kernel."""
-        w0 = w
-        w1 = torch.rot90(w, 1, [2, 3])
-        w2 = torch.rot90(w, 2, [2, 3])
-        w3 = torch.rot90(w, 3, [2, 3])
-        w4 = torch.flip(w0, [3])
-        w5 = torch.flip(w1, [3])
-        w6 = torch.flip(w2, [3])
-        w7 = torch.flip(w3, [3])
-        return [w0, w1, w2, w3, w4, w5, w6, w7]
-
     def forward(self, x, alpha):
-        batch_size = x.size(0)
+        B = x.size(0)
+        # 1. D4 Symmetrization (Average of 8 versions)
+        w = self.weight
+        w_rots = [torch.rot90(w, i, [2, 3]) for i in range(4)]
+        w_all = w_rots + [torch.flip(r, [3]) for r in w_rots]
+        w_inv = torch.stack(w_all).mean(0)
 
-        # Create the D4-Symmetric kernel by averaging all 8 transformations
-        kernels = self.get_d4_kernels(self.weight)
-        w_inv = torch.stack(kernels).mean(dim=0)
+        # 2. Interpolate weights per sample in batch
+        # alpha shape: (B, 1) -> (B, out_ch, in_ch, k, k)
+        alpha = alpha.view(B, 1, 1, 1, 1)
+        # Broadcast standard weight and invariant weight across the batch
+        dynamic_w = (1 - alpha) * w.unsqueeze(0) + alpha * w_inv.unsqueeze(0)
 
-        # Interpolate based on alpha: 0 = Standard Conv, 1 = Fully D4-Invariant
-        alpha = alpha.view(batch_size, 1, 1, 1, 1)
-        dynamic_weight = (1 - alpha) * self.weight.unsqueeze(0) + alpha * w_inv.unsqueeze(0)
-
+        # 3. Optimized Batched Conv
+        # We reshape input to (1, B*C, H, W) and use group convolution
         x_reshaped = x.view(1, -1, x.size(2), x.size(3))
-        w_reshaped = dynamic_weight.view(-1, self.weight.size(1), self.weight.size(2), self.weight.size(3))
+        w_reshaped = dynamic_w.reshape(-1, self.in_ch, w.size(2), w.size(3))
 
         out = F.conv2d(x_reshaped, w_reshaped, stride=self.stride,
-                       padding=self.padding, groups=batch_size)
+                       padding=self.padding, groups=B)
+        return out.view(B, self.out_ch, out.size(2), out.size(3))
 
-        return out.view(batch_size, self.weight.size(0), out.size(2), out.size(3))
+
+class Controller(nn.Module):
+    def __init__(self, in_channels=3):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.AdaptiveAvgPool2d((4, 4)),
+            nn.Flatten(),
+            nn.Linear(in_channels * 4 * 4, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1)
+            # No Sigmoid here, we apply it in forward to allow bias control
+        )
+
+        # --- CRITICAL: Initialize to "Standard CNN" mode ---
+        # A bias of -3.0 results in sigmoid(-3) approx 0.04 (mostly standard conv)
+        nn.init.constant_(self.net[-1].bias, -3.0)
+
+    def forward(self, x):
+        return torch.sigmoid(self.net(x))
+
+
+class ConditionalResBlock(nn.Module):
+    def __init__(self, in_ch, out_ch, stride=1):
+        super().__init__()
+        self.conv1 = ConditionalD4Conv(in_ch, out_ch, stride=stride)
+        self.bn1 = nn.BatchNorm2d(out_ch)
+        self.conv2 = ConditionalD4Conv(out_ch, out_ch)
+        self.bn2 = nn.BatchNorm2d(out_ch)
+
+        # Handle skip connection dimension matching
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_ch != out_ch:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_ch, out_ch, kernel_size=1, stride=stride),
+                nn.BatchNorm2d(out_ch)
+            )
+
+    def forward(self, x, alpha):
+        out = F.relu(self.bn1(self.conv1(x, alpha)))
+        out = self.bn2(self.conv2(out, alpha))
+        out += self.shortcut(x)  # The Skip Connection
+        return F.relu(out)
 
 
 class ConditionalD4CNN(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes=10):
         super().__init__()
+        self.controller = Controller(in_channels=3)
 
-        self.controller = nn.Sequential(
-            nn.AdaptiveAvgPool2d((4, 4)),
-            nn.Flatten(),
-            nn.Linear(3 * 4 * 4, 32),
-            nn.ReLU(),
-            nn.Linear(32, 1),
-            nn.Sigmoid()
-        )
+        self.layer1 = ConditionalResBlock(3, 32, stride=2)
+        self.layer2 = ConditionalResBlock(32, 64, stride=2)
+        self.layer3 = ConditionalResBlock(64, 128, stride=2)
 
-        self.conv1 = ConditionalD4Conv(3, 32, 3)
-        self.conv2 = ConditionalD4Conv(32, 64, 3)
-        self.conv3 = ConditionalD4Conv(64, 128, 3)
-
-        self.pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(128, num_classes)
 
     def forward(self, x):
-        # 1. Determine D4-invariance requirement for this specific input
         alpha = self.controller(x)
 
-        # 2. Main pipeline with conditional kernels
-        x = F.relu(self.conv1(x, alpha))
-        x = F.max_pool2d(x, 2)
+        x = self.layer1(x, alpha)
+        x = self.layer2(x, alpha)
+        x = self.layer3(x, alpha)
 
-        x = F.relu(self.conv2(x, alpha))
-        x = F.max_pool2d(x, 2)
-
-        x = F.relu(self.conv3(x, alpha))
-
-        # 3. Global Spatial Invariance
-        x = self.pool(x).view(x.size(0), -1)
-
-        # Note: True G-Invariance usually involves pooling over the Group dimension.
-        # Since we are "symmetrizing" the filter itself, the feature map produced
-        # by a symmetric filter is inherently invariant to the input's D4 transformations.
+        x = self.avgpool(x).view(x.size(0), -1)
         return self.fc(x)

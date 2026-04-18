@@ -1,56 +1,35 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
-
-class StandardResBlock(nn.Module):
-    def __init__(self, in_c, out_c, stride=1):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_c, out_c, kernel_size=3, padding=1, stride=stride, bias=False)
-        self.bn1 = nn.BatchNorm2d(out_c)
-        self.conv2 = nn.Conv2d(out_c, out_c, kernel_size=3, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(out_c)
-
-        self.shortcut = nn.Identity()
-        if stride != 1 or in_c != out_c:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_c, out_c, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(out_c)
-            )
-
-    def forward(self, x):
-        identity = self.shortcut(x)
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        out += identity
-        return F.relu(out)
+from torchvision import models
 
 
 class StandardResNet(nn.Module):
-    def __init__(self, num_classes=10):
+    def __init__(self, num_classes=10, pretrained=True):
         super().__init__()
-        # Stem: matches the 64 channels of the V4 model's first layer
+
+        # 1. Load the official ResNet backbone
+        # We use resnet34 because it matches your multi-layer structure
+        weights = models.ResNet34_Weights.DEFAULT if pretrained else None
+        self.backbone = models.resnet34(weights=weights)
+
+        # 2. Re-map the layers to your existing naming convention
+        # (This keeps the rest of your code working)
         self.stem = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=7, padding=3, stride=2, bias=False),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            self.backbone.conv1,
+            self.backbone.bn1,
+            self.backbone.relu,
+            self.backbone.maxpool
         )
+        self.layer1 = self.backbone.layer1
+        self.layer2 = self.backbone.layer2
+        self.layer3 = self.backbone.layer3
+        # Note: We omit layer4 if you want to keep your 256-channel limit
 
-        # Layers: Using the full 64, 128, 256 channel widths
-        self.layer1 = StandardResBlock(64, 64)
-        self.layer2 = StandardResBlock(64, 128, stride=2)
-        self.layer3 = StandardResBlock(128, 256, stride=2)
+        self.gap = self.backbone.avgpool
 
-        self.gap = nn.AdaptiveAvgPool2d(1)
-        # The V4 model pooled 256 channels down to 64 before the linear layer.
-        # To keep this "standard" version comparable, we use the full 256.
+        # 3. Match your custom classifier head
+        # ResNet34 layer3 outputs 256 channels
         self.classifier = nn.Linear(256, num_classes)
-
-        # Initialization
-        for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
 
     def forward(self, x):
         x = self.stem(x)
