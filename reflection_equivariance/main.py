@@ -7,7 +7,7 @@ from .StandardCNN import StandardCNN
 from .StandardResNet import StandardResNet
 from .V4BirdsCNN import V4BirdsCNN
 from .V4DigitsCNN import V4DigitsCNN
-from .V4EquivariantResNet import V4EquivariantResNet
+from .D4InvariantResNet import D4InvariantResNet
 from data_loaders import get_loaders
 
 
@@ -15,7 +15,7 @@ def get_arguments(argv):
     parser = argparse.ArgumentParser(
         description='Training model on MNIST / SVHN / ColorMNIST / iNaturalist / iNaturalist + MNIST.')
     parser.add_argument('-m', '--model', type=str, default='v4cnn',
-                        choices=['v4cnn', 'standard_cnn', 'v4resnet', 'standard_resnet'],
+                        choices=['v4cnn', 'standard_cnn', 'd4resnet', 'standard_resnet'],
                         help='Dataset to train/evaluate on (DEFAULT: v4cnn)')
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
@@ -80,8 +80,8 @@ def main():
     elif args.model == 'standard_cnn':
         model = StandardCNN(args.dataset).to(device)
     elif args.dataset in ['inaturalist', 'inaturalist_mnist']:
-        if args.model == 'v4resnet':
-            model = V4EquivariantResNet(n_classes).to(device)
+        if args.model == 'd4resnet':
+            model = D4InvariantResNet(n_classes).to(device)
         elif args.model == 'standard_resnet':
             model = StandardResNet(n_classes).to(device)
         else:
