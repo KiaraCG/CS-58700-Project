@@ -3,16 +3,12 @@ import sys
 
 import torch
 
-from steerable_cnn.conditional_d4model import ConditionalD4CNN
 from data_loaders import get_loaders
-
+from steerable_cnn.SteerableResNet import SteerableResNet
 
 def get_arguments(argv):
     parser = argparse.ArgumentParser(
-        description='Training model on Steerable CNN.')
-    parser.add_argument('-m', '--model', type=str, default='cnn',
-                        choices=['cnn', 'resnet'],
-                        help='Dataset to train/evaluate on (DEFAULT: cnn)')
+        description='Training model on Steerable ResNet.')
     parser.add_argument('-d', '--dataset', type=str, default='inaturalist_mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
                         help='Dataset to train/evaluate on (DEFAULT: inaturalist_mnist)')
@@ -57,17 +53,12 @@ def main():
     train_loader, test_loader, in_channels, n_classes = get_loaders(args)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Model   : {args.model}")
+    print(f"Model   : SteerableResNet")
     print(f"Device  : {device}")
     print(f"Epochs  : {args.n_epochs}  |  Batch size: {args.batch_size}")
     print("-" * 60)
 
-    if args.model == 'cnn':
-        model = ConditionalD4CNN(n_classes).to(device)
-    elif args.model == 'resnet':
-        raise NotImplementedError
-    else:
-        raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
+    model = SteerableResNet(n_classes).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
