@@ -3,18 +3,19 @@ import sys
 
 import torch
 
+from .conditional_d4model import ConditionalD4CNN
 from data_loaders import get_loaders
-from conditional_d4model import ConditionalD4CNN
+
 
 def get_arguments(argv):
     parser = argparse.ArgumentParser(
         description='Training model on Steerable CNN.')
     parser.add_argument('-m', '--model', type=str, default='cnn',
                         choices=['cnn', 'resnet'],
-                        help='Dataset to train/evaluate on (DEFAULT: v4cnn)')
+                        help='Dataset to train/evaluate on (DEFAULT: cnn)')
     parser.add_argument('-d', '--dataset', type=str, default='inaturalist_mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
-                        help='Dataset to train/evaluate on (DEFAULT: mnist)')
+                        help='Dataset to train/evaluate on (DEFAULT: inaturalist_mnist)')
     parser.add_argument('-e', '--n_epochs', type=int, default=50,
                         help='Number of epochs (DEFAULT: 50)')
     parser.add_argument('-bs', '--batch_size', type=int, default=256,

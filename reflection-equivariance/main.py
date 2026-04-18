@@ -3,11 +3,11 @@ import sys
 
 import torch
 
-from StandardCNN import StandardCNN
-from StandardResNet import StandardResNet
-from V4BirdsCNN import V4BirdsCNN
-from V4DigitsCNN import V4DigitsCNN
-from V4EquivariantResNet import V4EquivariantResNet
+from .StandardCNN import StandardCNN
+from .StandardResNet import StandardResNet
+from .V4BirdsCNN import V4BirdsCNN
+from .V4DigitsCNN import V4DigitsCNN
+from .V4EquivariantResNet import V4EquivariantResNet
 from data_loaders import get_loaders
 
 

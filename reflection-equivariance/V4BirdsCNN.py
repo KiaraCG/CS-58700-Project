@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from V4DigitsCNN import V4GroupConv
+from .V4DigitsCNN import V4GroupConv
 
 
 class V4BirdsCNN(nn.Module):
