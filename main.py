@@ -3,7 +3,7 @@ import sys
 
 import torch
 
-from .conditional_d4model import ConditionalD4CNN
+from steerable_cnn.conditional_d4model import ConditionalD4CNN
 from data_loaders import get_loaders
 
 
