@@ -3,32 +3,60 @@ import torch.nn as nn
 from torchvision import models
 
 
+class _STEBinaryGate(torch.autograd.Function):
+    """
+    Straight-Through Estimator for a hard {0, 1} gate.
+
+    Forward  :  α_hard = round(α_soft)   →  exactly 0 or 1
+    Backward :  gradient passes through as if round() were the identity,
+                i.e. ∂L/∂α_soft  ←  ∂L/∂α_hard   (no clipping needed
+                because α_soft is already in (0,1) from sigmoid).
+
+    This lets the SteeringController receive proper gradients even though
+    its output is binarised before being used.
+    """
+
+    @staticmethod
+    def forward(ctx, alpha_soft: torch.Tensor) -> torch.Tensor:
+        return alpha_soft.round()  # 0.0 or 1.0
+
+    @staticmethod
+    def backward(ctx, grad_output: torch.Tensor) -> torch.Tensor:
+        return grad_output  # identity straight-through
+
+
+def ste_binarize(alpha_soft: torch.Tensor) -> torch.Tensor:
+    """Convenience wrapper around _STEBinaryGate."""
+    return _STEBinaryGate.apply(alpha_soft)
+
+
 class SteeringController(nn.Module):
     """
-    Produces a per-sample scalar α ∈ (0, 1) from a low-resolution bottleneck
-    representation of the input.
+    Produces a per-sample hard binary gate α ∈ {0, 1} from a low-resolution
+    bottleneck representation of the input.
 
-    α → 0  :  fully equivariant (standard ResNet – pose-sensitive)
-    α → 1  :  fully invariant   (D4-averaged  – pose-insensitive)
+    α = 0  :  fully equivariant  (standard ResNet – pose-sensitive)
+    α = 1  :  fully invariant    (D4-averaged    – pose-insensitive)
 
-    The controller is deliberately lightweight so it does not dominate the
-    compute budget.  A small conv stem compresses the image to a 64-d vector,
-    then two FC layers produce the steering logit.
+    The forward pass binarises the sigmoid output with a Straight-Through
+    Estimator so the controller is still trained end-to-end.
 
     Args:
         in_channels (int): input image channels (default 3).
-        bottleneck_dim (int): width of the intermediate representation.
-        init_bias (float): initial logit bias.  0.0 → α ≈ 0.5 at the start
-                           of training so gradients flow through both paths.
+        bottleneck_dim (int): hidden width of the MLP.
+        init_bias (float): initial logit bias fed into sigmoid.
+                           0.0  → α_soft ≈ 0.5, so ~50 % of samples start
+                           in each regime and both paths receive gradients.
     """
 
-    def __init__(self, in_channels: int = 3,
+    def __init__(self,
+                 in_channels: int = 3,
                  bottleneck_dim: int = 64,
                  init_bias: float = 0.0):
         super().__init__()
 
         self.encoder = nn.Sequential(
-            # Aggressive spatial downsampling; we only need coarse statistics.
+            # Aggressive spatial downsampling – only coarse statistics needed.
             nn.Conv2d(in_channels, 16, kernel_size=7, stride=4, padding=3, bias=False),
             nn.BatchNorm2d(16),
             nn.ReLU(inplace=True),
@@ -45,7 +73,6 @@ class SteeringController(nn.Module):
             nn.Linear(bottleneck_dim, 1),  # scalar logit per sample
         )
 
-        # Initialise output bias so α starts near init_bias after sigmoid.
         nn.init.constant_(self.fc[-1].bias, init_bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -53,57 +80,61 @@ class SteeringController(nn.Module):
         Args:
             x: input images  [B, C, H, W]
         Returns:
-            alpha: steering weights  [B, 1]  in (0, 1)
+            alpha_hard: [B, 1]  – exactly 0.0 or 1.0 in the forward pass;
+                        gradients flow back via STE.
         """
         z = self.encoder(x)
-        alpha = torch.sigmoid(self.fc(z))  # [B, 1]
-        return alpha
+        alpha_soft = torch.sigmoid(self.fc(z))  # [B, 1], values in (0, 1)
+        alpha_hard = ste_binarize(alpha_soft)  # [B, 1], values in {0, 1}
+        return alpha_hard
 
-
-# ---------------------------------------------------------------------------
-# Steerable ResNet
-# ---------------------------------------------------------------------------
 
 class SteerableResNet(nn.Module):
     """
-    Steerable ResNet that smoothly interpolates between equivariant and
-    invariant behaviour on a *per-sample* basis.
+    Steerable ResNet with a **hard binary gate** that routes each sample to
+    either the equivariant path (α=0) or the D4-invariant path (α=1).
 
     Architecture overview
     ─────────────────────
-                         ┌──────────────────────────────┐
-    x ──► SteeringCtrl ──►  α  (scalar per image)        │
-    │                    └──────────────────────────────┘
-    │                                │
-    │    ┌───────────────────────────┼──────────────────────┐
-    │    │ Standard path             │  D4-invariant path   │
-    │    │  (equivariant)            │  (Reynolds operator) │
-    └────► backbone(x)              └► mean_k backbone(gₖx) │
-           ↓ f_std                         ↓ f_inv           │
-           └─────── α·f_inv + (1-α)·f_std ─────────────────►classifier
-    
-    The two paths share *all* backbone weights.  The D4-invariant path
-    applies the same backbone to all 8 group transforms of x, then averages
-    (Reynolds operator).  The steering controller decides, per sample, how
-    much to blend toward invariance.
+                         ┌─────────────────────────────────┐
+    x ──► SteeringCtrl ──►  α ∈ {0,1}  (hard, per-sample)  │
+    │                    └─────────────────────────────────┘
+    │                                  │
+    │    ┌─────────────────────────────┼──────────────────────┐
+    │    │  Standard path  (α=0)       │  D4-inv path  (α=1)  │
+    │    │  backbone(x)                │  mean_k backbone(gₖx)│
+    └────►  f_std                      │  f_inv               │
+           └──── α·f_inv + (1-α)·f_std ──────────────────────►classifier
+
+    Because α is binary the blending reduces to a hard selection:
+        α=0  →  f_std     (standard, pose-sensitive)
+        α=1  →  f_inv     (D4-invariant, pose-insensitive)
+
+    Gradients for the SteeringController are supplied by the Straight-Through
+    Estimator, so end-to-end training is still possible.
+
+    The D4-invariant path is *only computed* for samples where α=1, saving
+    ~8× backbone FLOPs for the equivariant subset.
 
     Args:
         num_classes (int): number of output classes.
         pretrained (bool): initialise backbone from ImageNet weights.
         bottleneck_dim (int): hidden size of the steering controller.
-        learnable_temperature (bool): if True, add a learned temperature
-            parameter τ that sharpens/flattens α after sigmoid, allowing the
-            network to learn more decisive steering.
+        inv_path_always (bool): if True, always compute the invariant path
+            for all samples (simpler code, useful for debugging).  Default
+            False uses the efficient selective-compute version.
     """
 
     def __init__(self,
                  num_classes: int = 10,
                  pretrained: bool = True,
                  bottleneck_dim: int = 64,
-                 learnable_temperature: bool = True):
+                 inv_path_always: bool = False):
         super().__init__()
 
-        # ── Shared backbone (ResNet-34 minus layer4) ──────────────────────
+        self.inv_path_always = inv_path_always
+
+        # ── Shared backbone (ResNet-34 up to layer3) ──────────────────────
         weights = models.ResNet34_Weights.DEFAULT if pretrained else None
         backbone = models.resnet34(weights=weights)
 
@@ -125,12 +156,6 @@ class SteerableResNet(nn.Module):
             init_bias=0.0,
         )
 
-        # Optional learned temperature τ > 0 (log-parameterised for stability)
-        self.learnable_temperature = learnable_temperature
-        if learnable_temperature:
-            # initialised to τ = 1  (no sharpening at start)
-            self.log_temperature = nn.Parameter(torch.zeros(1))
-
         # ── Classifier head ───────────────────────────────────────────────
         self.classifier = nn.Linear(256, num_classes)
 
@@ -144,13 +169,20 @@ class SteerableResNet(nn.Module):
         return transforms  # 8 elements, each [B, C, H, W]
 
     def _backbone(self, x: torch.Tensor) -> torch.Tensor:
-        """Shared forward pass through backbone → flat feature vector."""
+        """Shared forward pass through backbone → flat feature vector [B,256]."""
         x = self.stem(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.gap(x)
-        return torch.flatten(x, 1)  # [B, 256]
+        return torch.flatten(x, 1)
+
+    def _invariant_features(self, x: torch.Tensor) -> torch.Tensor:
+        """Reynolds operator: mean over D4 orbit of backbone features."""
+        B = x.size(0)
+        combined = torch.cat(self._d4_group(x), dim=0)  # [8B, C, H, W]
+        group_feats = self._backbone(combined)  # [8B, 256]
+        return group_feats.view(8, B, -1).mean(dim=0)  # [B,  256]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -161,27 +193,31 @@ class SteerableResNet(nn.Module):
         """
         B = x.size(0)
 
-        # ── 1. Steering weights ──────────────────────────────────────────
-        alpha = self.steering(x)  # [B, 1],  values in (0,1)
-
-        if self.learnable_temperature:
-            tau = torch.exp(self.log_temperature).clamp(min=1e-2)
-            # Re-centre at 0.5 before applying temperature, then re-sigmoid
-            logit = torch.log(alpha / (1.0 - alpha + 1e-8))
-            alpha = torch.sigmoid(logit * tau)
+        # ── 1. Hard binary gate ──────────────────────────────────────────
+        # alpha_hard ∈ {0.0, 1.0},  shape [B, 1]
+        # Gradients flow back to the controller via STE.
+        alpha = self.steering(x)  # [B, 1]
 
         # ── 2. Standard (equivariant) features ───────────────────────────
         f_std = self._backbone(x)  # [B, 256]
 
-        # ── 3. D4-invariant features  (Reynolds operator) ────────────────
-        group_imgs = self._d4_group(x)  # 8 × [B,C,H,W]
-        combined = torch.cat(group_imgs, dim=0)  # [8B, C, H, W]
-        group_feats = self._backbone(combined)  # [8B, 256]
-        group_feats = group_feats.view(8, B, -1)  # [8, B, 256]
-        f_inv = group_feats.mean(dim=0)  # [B, 256]
+        # ── 3. D4-invariant features ──────────────────────────────────────
+        if self.inv_path_always or not self.training:
+            # Simple branch: always compute for all samples.
+            # In eval mode we always do this so get_steering_weights is clean.
+            f_inv = self._invariant_features(x)  # [B, 256]
+        else:
+            # Efficient branch: only run the costly D4 average for the subset
+            # of samples where alpha=1, then scatter back into a [B,256] buffer.
+            inv_mask = alpha.squeeze(1).bool()  # [B]
+            f_inv = torch.zeros_like(f_std)
+            if inv_mask.any():
+                f_inv[inv_mask] = self._invariant_features(x[inv_mask])
 
-        # ── 4. Smooth interpolation ───────────────────────────────────────
-        #   alpha [B,1] broadcasts over feature dim 256
+        # ── 4. Hard selection via the binary alpha ────────────────────────
+        # alpha broadcasts: [B,1] × [B,256]
+        # When α=0  →  f_steered = f_std   (equivariant, pure)
+        # When α=1  →  f_steered = f_inv   (invariant,   pure)
         f_steered = alpha * f_inv + (1.0 - alpha) * f_std  # [B, 256]
 
         # ── 5. Classify ───────────────────────────────────────────────────
@@ -190,86 +226,93 @@ class SteerableResNet(nn.Module):
     @torch.no_grad()
     def get_steering_weights(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Returns per-sample α values for interpretability / analysis.
+        Returns the hard binary α for each sample.
 
         Args:
             x: input images  [B, C, H, W]
         Returns:
-            alpha: [B]  in (0, 1)
+            alpha: [B]  – each value is exactly 0 or 1.
         """
-        alpha = self.steering(x)
-        if self.learnable_temperature:
-            tau = torch.exp(self.log_temperature).clamp(min=1e-2)
-            logit = torch.log(alpha / (1.0 - alpha + 1e-8))
-            alpha = torch.sigmoid(logit * tau)
-        return alpha.squeeze(1)
+        return self.steering(x).squeeze(1)
 
     def steering_summary(self, x: torch.Tensor) -> dict:
         """
         Returns a dict with steering statistics for a batch.
-        Useful during training to monitor whether the network is learning
-        to steer toward one regime or staying in the middle.
+        Because α ∈ {0,1} the mean equals the fraction routed to invariance.
         """
         alpha = self.get_steering_weights(x)
         return {
             "alpha_mean": alpha.mean().item(),
-            "alpha_std": alpha.std().item(),
-            "alpha_min": alpha.min().item(),
-            "alpha_max": alpha.max().item(),
-            "pct_invariant": (alpha > 0.75).float().mean().item(),
-            "pct_equivariant": (alpha < 0.25).float().mean().item(),
+            "pct_invariant": alpha.mean().item(),  # α=1
+            "pct_equivariant": (1.0 - alpha.mean()).item(),  # α=0
+            "n_invariant": int(alpha.sum().item()),
+            "n_equivariant": int((1 - alpha).sum().item()),
         }
 
 
 def build_steerable_resnet(num_classes: int = 10,
                            pretrained: bool = True,
                            bottleneck_dim: int = 64,
-                           learnable_temperature: bool = True
+                           inv_path_always: bool = False,
                            ) -> SteerableResNet:
     """Drop-in factory matching the interface of StandardResNet / D4InvariantResNet."""
     return SteerableResNet(
         num_classes=num_classes,
         pretrained=pretrained,
         bottleneck_dim=bottleneck_dim,
-        learnable_temperature=learnable_temperature,
+        inv_path_always=inv_path_always,
     )
 
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = build_steerable_resnet(num_classes=10, pretrained=False).to(device)
-    model.eval()
 
-    x = torch.randn(4, 3, 224, 224, device=device)
-    logits = model(x)
+    x = torch.randn(8, 3, 224, 224, device=device)
+
+    model.eval()
+    with torch.no_grad():
+        logits = model(x)
 
     print("=" * 60)
-    print("SteerableResNet – smoke test")
+    print("SteerableResNet (Hard Binary Gate) – smoke test")
     print("=" * 60)
     print(f"  Input  shape : {tuple(x.shape)}")
     print(f"  Output shape : {tuple(logits.shape)}")
     print()
+
     stats = model.steering_summary(x)
     print("  Steering statistics (random init):")
     for k, v in stats.items():
-        print(f"    {k:25s}: {v:.4f}")
+        print(f"    {k:25s}: {v}")
     print()
 
-    # Verify invariance of the D4 path
-    with torch.no_grad():
-        rot_x = torch.rot90(x, k=1, dims=[-2, -1])
-        flip_x = torch.flip(x, dims=[-1])
-
-        alpha_x = model.get_steering_weights(x)
-        alpha_rot = model.get_steering_weights(rot_x)
-        alpha_flip = model.get_steering_weights(flip_x)
-
-        print("  Alpha sensitivity to D4 transforms (should differ – controller")
-        print("  is NOT constrained to be equivariant, by design):")
-        print(f"    mean |α(x) – α(rot x)|  : {(alpha_x - alpha_rot).abs().mean():.4f}")
-        print(f"    mean |α(x) – α(flip x)| : {(alpha_x - alpha_flip).abs().mean():.4f}")
-
+    # ── Verify hard binarisation ──────────────────────────────────────────
+    alpha = model.get_steering_weights(x)
+    unique_vals = alpha.unique().tolist()
+    print(f"  Unique α values : {unique_vals}  (must be subset of {{0.0, 1.0}})")
+    assert all(v in (0.0, 1.0) for v in unique_vals), "α is NOT binary!"
+    print("  ✓ Hard gate confirmed – no intermediate values.")
     print()
+
+    # ── Verify gradients flow to controller ──────────────────────────────
+    model.train()
+    logits = model(x)
+    loss = logits.sum()
+    loss.backward()
+
+    ctrl_grad_norms = {
+        name: p.grad.norm().item()
+        for name, p in model.steering.named_parameters()
+        if p.grad is not None
+    }
+    print("  Controller gradient norms (STE check):")
+    for name, norm in ctrl_grad_norms.items():
+        print(f"    {name:40s}: {norm:.6f}")
+    all_nonzero = all(n > 0 for n in ctrl_grad_norms.values())
+    print(f"  ✓ All gradients non-zero: {all_nonzero}")
+    print()
+
     total_params = sum(p.numel() for p in model.parameters())
     ctrl_params = sum(p.numel() for p in model.steering.parameters())
     print(f"  Total parameters    : {total_params:,}")
