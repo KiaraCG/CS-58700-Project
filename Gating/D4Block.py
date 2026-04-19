@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .D4GroupConv import D4GroupConv
+from D4GroupConv import D4GroupConv
 
 class D4Block(nn.Module):
     """

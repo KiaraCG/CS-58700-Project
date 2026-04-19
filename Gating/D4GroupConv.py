@@ -72,19 +72,22 @@ class D4GroupConv(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         B, _, H, W = x.shape
-        weights = self._transformed_weights()
+        w = self.weight  # [out_ch, in_ch, K, K]
 
         if self.lifting:
-            w = torch.cat(weights, dim=0).to(x.device)
-            return F.conv2d(x, w, padding=self.padding)
-        else:
-            x_g = x.view(B, 8, self.in_channels, H, W)
-            outputs = []
-            for g in range(8):
-                perm   = _D4_PERM[g]
-                x_perm = x_g[:, perm].reshape(B, 8 * self.in_channels, H, W)
-                outputs.append(
-                    F.conv2d(x_perm, weights[g].to(x.device), padding=self.padding)
-                )
-            return torch.cat(outputs, dim=1)    # [B, 8*out_ch, H, W]
+            weights = torch.cat(
+                [_d4_transform_weight(w, g) for g in range(8)], dim=0
+            ).to(x.device)                                  # [8*out_ch, in_ch, K, K]
+            return F.conv2d(x, weights, padding=self.padding)
 
+        else:
+            # Build [8*out_ch, 8*in_ch, K, K] combined weight
+            # Row block g uses g-transformed filter, columns permuted by _D4_PERM[g]
+            O, I, K, _ = w.shape
+            combined = torch.zeros(8*O, 8*I, K, K, device=x.device)
+            for g in range(8):
+                w_g  = _d4_transform_weight(w, g)           # [O, I, K, K]
+                perm = _D4_PERM[g]
+                for h, ph in enumerate(perm):
+                    combined[g*O:(g+1)*O, ph*I:(ph+1)*I] = w_g
+            return F.conv2d(x, combined, padding=self.padding)

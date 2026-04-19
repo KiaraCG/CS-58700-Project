@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .C4GroupConv import C4GroupConv
+from C4GroupConv import C4GroupConv
 
 class C4Block(nn.Module):
     def __init__(self, in_ch, out_ch):

@@ -165,13 +165,12 @@ def get_bird_mnist_data_loaders(args):
     ])
 
     mnist_transform = transforms.Compose([
-        # transforms.Resize((224, 224)),
+        transforms.Resize((64, 64)),      
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
-                             (0.229, 0.224, 0.225)),
+                            (0.229, 0.224, 0.225)),
     ])
-
     if reflect_images:
         flip = transforms.RandomHorizontalFlip(p=1.0)
         bird_transform  = transforms.Compose([flip, bird_transform])

@@ -146,52 +146,39 @@ class MultiGatedCNN(nn.Module):
 
     # ── Forward ─────────────────────────────────────────────────────────────────
 
-    def forward(self, x: torch.Tensor, tasks):
-        """
-        Args:
-            x     : [B, 3, H, W] image batch
-            tasks : list of strings, length B — each entry 'bird' or 'digit'
-
-        Returns:
-            out        : [B, max(n_bird, 10)]  logits
-            bird_mask  : [B] bool tensor
-            digit_mask : [B] bool tensor
-            gates      : [B, 2]  — gates[:, 0]=g_rot, gates[:, 1]=g_ref
-        """
-
-        # Backbone features
+    def forward(self, x, tasks=None):
+        # 1. Backbone
         feat = self.backbone(x)                             # [B, CG, H, W]
 
-        # Gate decisions
+        # 2. Gate
         gates = self.gate(feat)                             # [B, 2]
-        g_rot = gates[:, 0].view(-1, 1, 1, 1)              # [B, 1, 1, 1]
+        g_rot = gates[:, 0].view(-1, 1, 1, 1)
         g_ref = gates[:, 1].view(-1, 1, 1, 1)
-        # g_col = gates[:, 2].view(-1, 1, 1, 1)           
 
+        # 3. Blend features
         f = g_ref * self._apply_reflection_invariance(feat) + (1 - g_ref) * feat
         f = g_rot * self._apply_rotation_invariance(f)      + (1 - g_rot) * f
-        # f = g_col * self._apply_color_invariance(f)       + (1 - g_col) * f
 
-     
+        # 4. Two paths
         pooled = self.global_pool(f).flatten(1)             # [B, CG]
+        inv    = pooled.view(pooled.size(0), self._G, self._C).mean(dim=1)  # [B, C]
+        equi   = pooled                                     # [B, CG]
 
-        # Invariant:  group-average over G dim → [B, C]
-        inv  = pooled.view(pooled.size(0), self._G, self._C).mean(dim=1)
-        # Equivariant: keep all group channels → [B, CG]
-        equi = pooled
+        g_blend = gates[:, 0].unsqueeze(1)                  # [B, 1]
 
-        # Task routing
+        # 5. Route by task
+        if tasks is None:
+            # Binary mode — use bird head for both classes
+            out = g_blend * self.bird_head_inv(inv) + (1 - g_blend) * self.bird_head_equi(equi)
+            return out, gates
+
+        # Multi-class mode — route to correct head per sample
         bird_mask  = torch.tensor([t == "bird"  for t in tasks], device=x.device)
         digit_mask = torch.tensor([t == "digit" for t in tasks], device=x.device)
 
         n_bird  = self.bird_head_inv.out_features
         n_digit = self.digit_head_inv.out_features
         out     = torch.zeros(x.size(0), max(n_bird, n_digit), device=x.device)
-
-        # g_rot doubles as the inv/equi head blend weight:
-        #   g_rot → 1: trust the invariant head
-        #   g_rot → 0: trust the equivariant head
-        g_blend = gates[:, 0].unsqueeze(1)                  # [B, 1]
 
         if bird_mask.any():
             g  = g_blend[bird_mask]
@@ -205,4 +192,4 @@ class MultiGatedCNN(nn.Module):
             oe = self.digit_head_equi(equi[digit_mask])
             out[digit_mask, :n_digit] = g * oi + (1 - g) * oe
 
-        return out, bird_mask, digit_mask, gates
+        return out, gates, bird_mask, digit_mask
