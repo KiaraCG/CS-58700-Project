@@ -3,10 +3,12 @@ import sys
 
 import torch
 import torch.nn.functional as F
+import os
 
 from data.data_loaders import get_loaders
 from standard.StandardCNN import StandardCNN
 # from rotation.equivariant.C4EquivariantCNN_HWK import GEquivariantCNN
+from rotation.invariant.C4InvariantResNetBird import ResNetBirdsCNN
 from rotation.invariant.C4InvariantDigitsCNN import C4InvariantDigitsCNN
 from rotation.invariant.C4InvariantBirdsCNN import C4InvariantBirdsCNN
 from rotation.invariant.C4InvariantCNN import C4InvariantCNN
@@ -28,13 +30,16 @@ def get_arguments(argv):
                             'v4_invariant', 
                             'c4_equivariant',
                             'c4_invariant',
-                            'standard_cnn'
+                            'standard_cnn',
+                            'resnet'
                         ])
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
                         help='Dataset to train/evaluate on (DEFAULT: mnist)')
     parser.add_argument('-e', '--n_epochs', type=int, default=50,
                         help='Number of epochs (DEFAULT: 50)')
+    parser.add_argument('-lr', '--learning_rate', type=float, default=0.0001,
+                        help='Learning rate (DEFAULT: 0.001)')
     parser.add_argument('-bs', '--batch_size', type=int, default=256,
                         help='Batch size (DEFAULT: 256)')
     parser.add_argument("--reflect_images", action="store_true",
@@ -168,6 +173,8 @@ def main():
             model = C4InvariantDigitsCNN(in_channels=in_channels).to(device)
         elif args.dataset == 'inaturalist':
             model = C4InvariantBirdsCNN(n_classes).to(device)
+        elif args.model == 'resnet':
+            model = ResNetBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
             n_bird_classes, _ = n_classes
             model = C4InvariantCNN(n_bird_classes).to(device)
@@ -206,13 +213,29 @@ def main():
     else:
         raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
     criterion = torch.nn.CrossEntropyLoss()
     # call before training
     # test_equivariance(model, device)
     # test_equivariance_per_layer(model, device) 
+
+    # CHECKPOINT_DIR = '/scratch/scholar/shams3/checkpoints'
+    # os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    best_acc  = 0.0
+
+    # Resume from checkpoint if one exists
+    start_epoch = 0
+    # if os.path.exists(f'{CHECKPOINT_DIR}/latest.pt'):
+    #     ckpt = torch.load(f'{CHECKPOINT_DIR}/latest.pt')
+    #     model.load_state_dict(ckpt['model_state'])
+    #     optimizer.load_state_dict(ckpt['optimizer_state'])
+    #     start_epoch = ckpt['epoch'] + 1
+    #     best_acc    = ckpt['test_acc']
+    #     print(f"Resumed from epoch {start_epoch}, best acc={best_acc:.2f}%")
+
     print("Starting training...")
-    for epoch in range(args.n_epochs):
+    for epoch in range(start_epoch, args.n_epochs):   
         model.train()
         total_loss = 0
         correct_train = 0
@@ -250,6 +273,7 @@ def main():
                 predicted = out.max(1).indices
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) 
             optimizer.step()
 
             total_loss    += loss.item()
@@ -268,6 +292,20 @@ def main():
                 print(f"    Class {i}: {acc:.2f}%  ({correct_pc[i]}/{total_pc[i]})")
             else:
                 print(f"    Class {i}: N/A")
+        scheduler.step()
+                # ── Checkpointing ────────────────────────────────────────────────
+        # ckpt = {
+        #     'epoch':           epoch,
+        #     'model_state':     model.state_dict(),
+        #     'optimizer_state': optimizer.state_dict(),
+        #     'train_acc':       train_acc,
+        #     'test_acc':        test_acc,
+        # }
+        # torch.save(ckpt, f'{CHECKPOINT_DIR}/latest.pt')
+        # if test_acc > best_acc:
+        #     best_acc = test_acc
+        #     torch.save(ckpt, f'{CHECKPOINT_DIR}/best.pt')
+        #     print(f"  ✓ New best: {best_acc:.2f}%")
 
 
 if __name__ == "__main__":

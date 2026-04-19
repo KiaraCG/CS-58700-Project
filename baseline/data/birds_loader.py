@@ -2,12 +2,13 @@ import os
 import shutil
 import random
  
-import kagglehub
+# import kagglehub
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import datasets, transforms
  
-bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_train_small"
+# bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_train_small/bird_train"
+bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_100classes"
  
 IMAGES_PER_CLASS = 50   # → 40 train + 10 test after 80/20 split
 RANDOM_SEED      = 42
@@ -28,50 +29,36 @@ def download_data():
     print("Dataset downloaded to:", bird_data_dir)
  
     # Keep only IMAGES_PER_CLASS images per class right after downloading
-    _subsample_classes(bird_data_dir, IMAGES_PER_CLASS)
+    _keep_n_classes(bird_data_dir, n_classes=100, seed=RANDOM_SEED)
  
  
-def _subsample_classes(root: str, n: int, seed: int = RANDOM_SEED) -> None:
+def _keep_n_classes(root: str, n_classes: int = 100, seed: int = RANDOM_SEED) -> None:
     """
-    For every class sub-folder in *root*, keep only *n* randomly chosen
-    images and delete the rest in-place.
- 
-    With n=50 and an 80/20 train/test split this gives:
-        train → 40 images / class
-        test  → 10 images / class
+    Keep only n_classes random class folders, delete the rest.
+    All images within kept classes are preserved.
     """
+    import shutil, random
+
     rng = random.Random(seed)
-    image_extensions = {".jpg", ".jpeg", ".png"}
- 
-    class_dirs = sorted(
-        [d for d in os.scandir(root) if d.is_dir()],
-        key=lambda e: e.name,
-    )
- 
-    if not class_dirs:
-        print("[subsample] No class sub-folders found — nothing to trim.")
+    all_classes = sorted([d for d in os.scandir(root) if d.is_dir()],
+                         key=lambda e: e.name)
+
+    if len(all_classes) <= n_classes:
+        print(f"[keep_classes] Only {len(all_classes)} classes found, keeping all.")
         return
- 
-    total_kept = total_removed = 0
-    for cls in class_dirs:
-        images = [
-            f.path for f in os.scandir(cls.path)
-            if os.path.splitext(f.name)[1].lower() in image_extensions
-        ]
-        if len(images) <= n:
-            total_kept += len(images)
-            continue                       # already small enough, leave as-is
- 
-        rng.shuffle(images)
-        for p in images[n:]:
-            os.remove(p)
-        total_kept    += n
-        total_removed += len(images) - n
- 
-    n_classes = len(class_dirs)
-    print(f"[subsample] {n_classes} classes | kept {total_kept} "
-          f"({n}/class) | removed {total_removed}")
- 
+
+    keep    = set(e.name for e in rng.sample(all_classes, n_classes))
+    removed = 0
+    for cls in all_classes:
+        if cls.name not in keep:
+            shutil.rmtree(cls.path)
+            removed += 1
+
+    total_images = sum(
+        len(os.listdir(os.path.join(root, c))) for c in keep
+    )
+    print(f"[keep_classes] Kept {n_classes} classes ({total_images} images) | "
+          f"removed {removed} classes")
  
 # ─────────────────────────────────────────────
 # Resize (optional — run once after download)

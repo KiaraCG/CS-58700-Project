@@ -6,7 +6,7 @@
 #SBATCH --ntasks=1            # Number of MPI ranks per node (one rank per GPU)
 #SBATCH --cpus-per-task=4     # Number of CPU cores per MPI rank (change this if needed)
 #SBATCH --gres=gpu:1          # Use one GPU
-#SBATCH --mem-per-cpu=2G      # Required memory per GPU (specify how many GB)
+#SBATCH --mem-per-cpu=8G      # Required memory per GPU (specify how many GB)
 #SBATCH --time=1:00:00        # Total run time limit (hh:mm:ss)
 #SBATCH -J image              # Job name
 #SBATCH -o slurm_logs/%j      # Name of stdout output file
@@ -19,8 +19,8 @@
 
 
 
-python main.py -m standard_cnn -d mnist -e 100
-python main.py -m standard_cnn -d mnist -e 100 --rotate_images
+# python main.py -m standard_cnn -d mnist -e 100
+# python main.py -m standard_cnn -d mnist -e 100 --rotate_images
 
 #440784
 # python main.py -m c4_invariant -d mnist -e 100 
@@ -37,11 +37,38 @@ python main.py -m standard_cnn -d mnist -e 100 --rotate_images
 # python main.py -m c4_invariant -d svhn -e 100 --rotate_images
 
 
-# python main.py -m c4_invariant -d inaturalist -e 100
-# python main.py -m c4_invariant -d inaturalist -e 100 --rotate_images
+# normal test
+# python main.py -m resnet -d inaturalist -e 30 -bs 64 -lr 1e-3
+
+# # rotated test
+# python main.py -m resnet -d inaturalist -e 30 -bs 64 -lr 1e-3 --rotate_images
+
+# # compare with C4
+# python main.py -m c4_invariant -d inaturalist -e 30 -bs 64 -lr 1e-4 --rotate_images
+# # python main.py -m c4_invariant -d inaturalist -e 150 -bs 64 -lr 0.0001 --rotate_images
 
 
-#440619
+# Baseline CNN
+python main.py -m standard_cnn -d inaturalist_mnist -e 30 -bs 64 -lr 1e-3
+python main.py -m standard_cnn -d inaturalist_mnist -e 30 -bs 64 -lr 1e-3 --rotate_images
+
+# C4 Invariant
+python main.py -m c4_invariant -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4
+python main.py -m c4_invariant -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4 --rotate_images
+
+# C4 Equivariant
+python main.py -m c4_equivariant -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4
+python main.py -m c4_equivariant -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4 --rotate_images
+
+# # MultiGated C4
+# python main.py -m multi_gated_c4 -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4
+# python main.py -m multi_gated_c4 -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4 --rotate_images
+
+# # MultiGated D4
+# python main.py -m multi_gated_d4 -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4
+# python main.py -m multi_gated_d4 -d inaturalist_mnist -e 30 -bs 64 -lr 1e-4 --rotate_images
+
+# #440619
 # python main.py -m c4_equivariant -d mnist -e 100
 #440620
 # python main.py -m c4_equivariant -d mnist -e 100 --rotate_images

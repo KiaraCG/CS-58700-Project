@@ -5,8 +5,10 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
 from torch.utils.data import Dataset, DataLoader, random_split, Subset, ConcatDataset
 
-from .birds_loader import get_bird_data_loaders, bird_data_dir, RANDOM_SEED,TransformDataset
+from .birds_loader import get_bird_data_loaders,bird_data_dir, RANDOM_SEED,TransformDataset
 
+# bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_train_small/bird_train"
+# bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_100classes"
 
 # ---------------------------------------------------------------------------
 # ColorMNIST — IRM benchmark variant
@@ -163,7 +165,7 @@ def get_bird_mnist_data_loaders(args):
     ])
 
     mnist_transform = transforms.Compose([
-        transforms.Resize((224, 224)),
+        # transforms.Resize((224, 224)),
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
