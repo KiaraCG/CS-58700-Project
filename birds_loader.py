@@ -113,7 +113,8 @@ def get_bird_data_loaders(args, mean, std, data_dir):
     )
 
     # --- Metadata ---
-    in_channels = 3
+    # TODO revert back to 3
+    in_channels = 1
     n_classes = len(full_dataset.classes)
 
     #### TODO RESTRICT TO THE ESTABLISHED 10 CLASSES 

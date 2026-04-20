@@ -154,6 +154,9 @@ def get_loaders(args):
     dataset = args.dataset.lower()
 
     if dataset == 'mnist':
+        # TODO remove
+        return get_bird_data_loaders(args, mean=(0.1307,), std=(0.3081,),
+                                     data_dir='/Users/kiarachau/Desktop/mnist_pics')
         train_transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.1307,), (0.3081,))
