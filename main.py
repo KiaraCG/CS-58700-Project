@@ -70,6 +70,7 @@ def main():
         model = SteerableResNet(n_classes).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 40], gamma=0.1)
     criterion = torch.nn.CrossEntropyLoss()
     if args.model == 'informed_steerable_resnet':
         criterion_steer = torch.nn.BCELoss()
@@ -79,6 +80,7 @@ def main():
     print("Starting training...")
     for epoch in range(args.n_epochs):
         model.train()
+        scheduler.step()
         total_loss = 0
         correct_train = 0
         total_train = 0
@@ -98,7 +100,7 @@ def main():
                 alpha_soft = torch.sigmoid(model.steering.fc(model.steering.encoder(x)))
                 alpha_target = (y >= 10).float().unsqueeze(1)  # 0 for MNIST, 1 for Birds
                 loss_steer = criterion_steer(alpha_soft, alpha_target)
-                loss = loss + (1.0 * loss_steer)
+                loss = loss + (0.5 * loss_steer)
 
                 controller_preds = (alpha_soft > 0.5).float()
                 correct_controller += controller_preds.eq(alpha_target).sum().item()

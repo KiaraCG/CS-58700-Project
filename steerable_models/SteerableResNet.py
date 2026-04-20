@@ -148,7 +148,10 @@ class SteerableResNet(nn.Module):
         )
 
         # ── Classifier head ───────────────────────────────────────────────
-        self.classifier = nn.Linear(256, num_classes)
+        self.classifier = self.classifier = nn.Sequential(
+            nn.Dropout(p=0.5),
+            nn.Linear(256, num_classes)
+        )
 
     def _d4_group(self, x: torch.Tensor):
         """Returns the 8 D4 transforms of x as a list of [B,C,H,W] tensors."""
@@ -169,11 +172,11 @@ class SteerableResNet(nn.Module):
         return torch.flatten(x, 1)
 
     def _invariant_features(self, x: torch.Tensor) -> torch.Tensor:
-        """Reynolds operator: mean over D4 orbit of backbone features."""
         B = x.size(0)
-        combined = torch.cat(self._d4_group(x), dim=0)  # [8B, C, H, W]
-        group_feats = self._backbone(combined)  # [8B, 256]
-        return group_feats.view(8, B, -1).mean(dim=0)  # [B,  256]
+        combined = torch.cat(self._d4_group(x), dim=0)
+        group_feats = self._backbone(combined)
+        # Change .mean(dim=0) to .max(dim=0)[0]
+        return group_feats.view(8, B, -1).max(dim=0)[0]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
