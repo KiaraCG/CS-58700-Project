@@ -79,7 +79,7 @@ def main():
             raise ValueError(f"Dataset {args.dataset} is not supported for v4cnn.")
     elif args.model == 'standard_cnn':
         model = StandardCNN(args.dataset).to(device)
-    elif args.dataset in ['inaturalist', 'inaturalist_mnist']:
+    elif args.dataset in ['inaturalist', 'inaturalist_mnist', 'mnist']:
         if args.model == 'd4resnet':
             model = D4InvariantResNet(n_classes).to(device)
         elif args.model == 'standard_resnet':

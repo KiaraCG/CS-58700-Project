@@ -32,15 +32,6 @@ def ste_binarize(alpha_soft: torch.Tensor) -> torch.Tensor:
 
 class SteeringController(nn.Module):
     """
-    Produces a per-sample hard binary gate α ∈ {0, 1} from a low-resolution
-    bottleneck representation of the input.
-
-    α = 0  :  fully equivariant  (standard ResNet – pose-sensitive)
-    α = 1  :  fully invariant    (D4-averaged    – pose-insensitive)
-
-    The forward pass binarises the sigmoid output with a Straight-Through
-    Estimator so the controller is still trained end-to-end.
-
     Args:
         in_channels (int): input image channels (default 3).
         bottleneck_dim (int): hidden width of the MLP.
@@ -262,59 +253,3 @@ def build_steerable_resnet(num_classes: int = 10,
         bottleneck_dim=bottleneck_dim,
         inv_path_always=inv_path_always,
     )
-
-
-if __name__ == "__main__":
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = build_steerable_resnet(num_classes=10, pretrained=False).to(device)
-
-    x = torch.randn(8, 3, 224, 224, device=device)
-
-    model.eval()
-    with torch.no_grad():
-        logits = model(x)
-
-    print("=" * 60)
-    print("SteerableResNet (Hard Binary Gate) – smoke test")
-    print("=" * 60)
-    print(f"  Input  shape : {tuple(x.shape)}")
-    print(f"  Output shape : {tuple(logits.shape)}")
-    print()
-
-    stats = model.steering_summary(x)
-    print("  Steering statistics (random init):")
-    for k, v in stats.items():
-        print(f"    {k:25s}: {v}")
-    print()
-
-    # ── Verify hard binarisation ──────────────────────────────────────────
-    alpha = model.get_steering_weights(x)
-    unique_vals = alpha.unique().tolist()
-    print(f"  Unique α values : {unique_vals}  (must be subset of {{0.0, 1.0}})")
-    assert all(v in (0.0, 1.0) for v in unique_vals), "α is NOT binary!"
-    print("  ✓ Hard gate confirmed – no intermediate values.")
-    print()
-
-    # ── Verify gradients flow to controller ──────────────────────────────
-    model.train()
-    logits = model(x)
-    loss = logits.sum()
-    loss.backward()
-
-    ctrl_grad_norms = {
-        name: p.grad.norm().item()
-        for name, p in model.steering.named_parameters()
-        if p.grad is not None
-    }
-    print("  Controller gradient norms (STE check):")
-    for name, norm in ctrl_grad_norms.items():
-        print(f"    {name:40s}: {norm:.6f}")
-    all_nonzero = all(n > 0 for n in ctrl_grad_norms.values())
-    print(f"  ✓ All gradients non-zero: {all_nonzero}")
-    print()
-
-    total_params = sum(p.numel() for p in model.parameters())
-    ctrl_params = sum(p.numel() for p in model.steering.parameters())
-    print(f"  Total parameters    : {total_params:,}")
-    print(f"  Controller params   : {ctrl_params:,}  ({100 * ctrl_params / total_params:.1f}%)")
-    print("=" * 60)

@@ -2,5 +2,5 @@
 
 ### Evaluating the reflection-equivariant model
 
-- `python -m reflection_equivariance.main --model standard_resnet -d inaturalist_mnist`
-- 
+- Reflection-equivariant models: `python -m reflection_equivariance.main --model v4cnn -d inaturalist_mnist`
+- D4-invariant steerable ResNet: `python main.py -d inaturalist_mnist`
