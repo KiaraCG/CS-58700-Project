@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-from steerable_models.SteerableResNet import SteeringController
+from steerable_models.SteerableResNet import SteeringController, ste_binarize
 
 
 class InformedSteerableResNet(nn.Module):
@@ -45,21 +45,35 @@ class InformedSteerableResNet(nn.Module):
         TRAINING: Pass labels to force correct routing.
         TESTING: Labels are None; SteeringController predicts alpha.
         """
-        if labels is not None:
-            # We know the answer: Classes 0-9 (MNIST) -> 0, Classes 10-19 (Birds) -> 1
-            alpha = (labels >= 10).float().unsqueeze(1)
+        alpha_soft = torch.sigmoid(self.steering.fc(self.steering.encoder(x)))
+
+        if self.training and labels is not None:
+            # --- TRAINING MODE: Alpha Smoothing ---
+            # 0 for MNIST, 1 for Birds
+            alpha_target = (labels >= 10).float().unsqueeze(1)
+
+            # Mix 80% ground truth and 20% model guess.
+            alpha = 0.8 * alpha_target + 0.2 * alpha_soft
+
+            # In training, we compute both paths and blend them to ensure
+            # the classifier can handle 'imperfect' steering at test time.
+            f_std = self._backbone(x)
+            f_inv = self._invariant_features(x)
+            f_steered = (1.0 - alpha) * f_std + alpha * f_inv
+
         else:
-            # We don't know the answer: Let the model look at 'x' and decide
-            alpha = self.steering(x)
+            # --- TESTING/INFERENCE MODE: Hard Routing ---
+            # We use ste_binarize (the round() function) for binary 0.0 or 1.0
+            alpha_hard = ste_binarize(alpha_soft)
 
-        f_steered = torch.zeros((x.size(0), 256), device=x.device)
+            f_steered = torch.zeros((x.size(0), 256), device=x.device)
+            inv_mask = alpha_hard.squeeze(1).bool()
+            std_mask = ~inv_mask
 
-        inv_mask = alpha.squeeze(1) > 0.5
-        std_mask = ~inv_mask
-
-        if std_mask.any():
-            f_steered[std_mask] = self._backbone(x[std_mask])
-        if inv_mask.any():
-            f_steered[inv_mask] = self._invariant_features(x[inv_mask])
+            # Only compute the paths needed (Efficient)
+            if std_mask.any():
+                f_steered[std_mask] = self._backbone(x[std_mask])
+            if inv_mask.any():
+                f_steered[inv_mask] = self._invariant_features(x[inv_mask])
 
         return self.classifier(f_steered)

@@ -239,17 +239,3 @@ class SteerableResNet(nn.Module):
             "n_invariant": int(alpha.sum().item()),
             "n_equivariant": int((1 - alpha).sum().item()),
         }
-
-
-def build_steerable_resnet(num_classes: int = 10,
-                           pretrained: bool = True,
-                           bottleneck_dim: int = 64,
-                           inv_path_always: bool = False,
-                           ) -> SteerableResNet:
-    """Drop-in factory matching the interface of StandardResNet / D4InvariantResNet."""
-    return SteerableResNet(
-        num_classes=num_classes,
-        pretrained=pretrained,
-        bottleneck_dim=bottleneck_dim,
-        inv_path_always=inv_path_always,
-    )
