@@ -7,6 +7,7 @@ from data_loaders import get_loaders
 from steerable_models.InformedSteerableResNet import InformedSteerableResNet
 from steerable_models.SteerableResNet import SteerableResNet
 
+
 def get_arguments(argv):
     parser = argparse.ArgumentParser(
         description='Training model on Steerable ResNet.')
@@ -87,10 +88,10 @@ def main():
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
-            if args.model == 'informed_steerable_resnet':
-                outputs = model(x, labels=y)
-            else:
-                outputs = model(x)
+            # if args.model == 'informed_steerable_resnet':
+            #     outputs = model(x, labels=y)
+            # else:
+            outputs = model(x)
             loss = criterion(outputs, y)
 
             if args.model == 'informed_steerable_resnet':
