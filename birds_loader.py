@@ -82,7 +82,7 @@ def get_bird_data_loaders(args, mean, std, data_dir):
             transforms.Normalize(mean, std)])
 
     # --- Load full dataset ---
-    full_dataset = datasets.ImageFolder(data_dir)
+    full_dataset = NumericImageFolder(data_dir)
 
     # --- Split dataset (80% train / 20% test) ---
     train_size = int(0.8 * len(full_dataset))
@@ -119,3 +119,15 @@ def get_bird_data_loaders(args, mean, std, data_dir):
     #### TODO RESTRICT TO THE ESTABLISHED 10 CLASSES 
 
     return train_loader, test_loader, in_channels, n_classes
+
+
+class NumericImageFolder(datasets.ImageFolder):
+    def find_classes(self, directory):
+        classes = [d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))]
+        classes = [d for d in classes if d.isdigit() and 0 <= int(d) <= 19]
+
+        classes.sort(key=lambda x: int(x))
+
+        class_to_idx = {cls_name: int(cls_name) for cls_name in classes}
+
+        return classes, class_to_idx

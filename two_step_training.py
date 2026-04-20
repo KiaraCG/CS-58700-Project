@@ -100,9 +100,9 @@ def main():
         param.requires_grad = True
     for param in model.steering.parameters():
         param.requires_grad = False
-    full_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4)
+    full_optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
-    for epoch in range(args.n_epochs):
+    for epoch in range(args.n_epochs-5):
         model.train()
         total_loss = 0
         correct_train = 0
@@ -138,6 +138,23 @@ def main():
             else:
                 print(f"    Class {i}: N/A")
 
+    print("Stage 3: Full Model Co-adaptation (Fine-tuning)...")
+    for param in model.parameters():
+        param.requires_grad = True
+
+    # Use a MUCH lower learning rate (10x smaller) to prevent destroying the experts we just built.
+    optimizer_s3 = torch.optim.Adam(model.parameters(), lr=1e-5)
+
+    for epoch in range(5):
+        model.train()
+        for x, y in train_loader:
+            x, y = x.to(device), y.to(device)
+            optimizer_s3.zero_grad()
+            outputs = model(x, labels=y)
+            loss = criterion(outputs, y)
+            loss.backward()
+            optimizer_s3.step()
+        evaluate(model, test_loader, device)
 
 if __name__ == "__main__":
     args = get_arguments(sys.argv[1:])
