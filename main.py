@@ -4,13 +4,17 @@ import sys
 import torch
 
 from data_loaders import get_loaders
-from steerable_cnn.SteerableResNet import SteerableResNet
+from steerable_models.InformedSteerableResNet import InformedSteerableResNet
+from steerable_models.SteerableResNet import SteerableResNet
 
 def get_arguments(argv):
     parser = argparse.ArgumentParser(
         description='Training model on Steerable ResNet.')
+    parser.add_argument('-m', '--model', type=str, default='steerable_resnet',
+                        choices=['steerable_resnet', 'informed_steerable_resnet'],
+                        help='Model to train/evaluate (DEFAULT: steerable_resnet)')
     parser.add_argument('-d', '--dataset', type=str, default='inaturalist_mnist',
-                        choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
+                        choices=['mnist', 'inaturalist', 'inaturalist_mnist'],
                         help='Dataset to train/evaluate on (DEFAULT: inaturalist_mnist)')
     parser.add_argument('-e', '--n_epochs', type=int, default=50,
                         help='Number of epochs (DEFAULT: 50)')
@@ -53,15 +57,23 @@ def main():
     train_loader, test_loader, in_channels, n_classes = get_loaders(args)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Model   : SteerableResNet")
+    print(f"Dataset : {args.dataset.upper()}")
+    print(f"Model   : {args.model}")
     print(f"Device  : {device}")
     print(f"Epochs  : {args.n_epochs}  |  Batch size: {args.batch_size}")
     print("-" * 60)
 
-    model = SteerableResNet(n_classes).to(device)
+    if args.model == 'informed_steerable_resnet':
+        model = InformedSteerableResNet(n_classes).to(device)
+    else:
+        model = SteerableResNet(n_classes).to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
+    if args.model == 'informed_steerable_resnet':
+        criterion_steer = torch.nn.BCELoss()
+    else:
+        criterion_steer = None
 
     print("Starting training...")
     for epoch in range(args.n_epochs):
@@ -74,8 +86,18 @@ def main():
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(x)
+            if args.model == 'informed_steerable_resnet':
+                outputs = model(x, labels=y)
+            else:
+                outputs = model(x)
             loss = criterion(outputs, y)
+
+            if args.model == 'informed_steerable_resnet':
+                alpha_soft = torch.sigmoid(model.steering.fc(model.steering.encoder(x)))
+                alpha_target = (y >= 10).float().unsqueeze(1)  # 0 for MNIST, 1 for Birds
+                loss_steer = criterion_steer(alpha_soft, alpha_target)
+                loss = loss + (1.0 * loss_steer)
+
             loss.backward()
             optimizer.step()
 
