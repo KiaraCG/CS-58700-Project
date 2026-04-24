@@ -1,5 +1,7 @@
 import argparse
 import sys
+from xml.parsers.expat import model
+
 
 import torch
 import torch.nn.functional as F
@@ -7,7 +9,8 @@ import os
 
 from data.data_loaders import get_loaders
 from standard.StandardCNN import StandardCNN
-# from rotation.equivariant.C4EquivariantCNN_HWK import GEquivariantCNN
+from standard.StandardCNNDualHead import StandardCNNDualHead
+
 from rotation.invariant.C4InvariantResNetBird import ResNetBirdsCNN
 from rotation.invariant.C4InvariantDigitsCNN import C4InvariantDigitsCNN
 from rotation.invariant.C4InvariantBirdsCNN import C4InvariantBirdsCNN
@@ -15,11 +18,6 @@ from rotation.invariant.C4InvariantCNN import C4InvariantCNN
 from rotation.equivariant.C4EquivariantDigitsCNN import C4EquivariantDigitsCNN
 from rotation.equivariant.C4EquivariantBirdsCNN import C4EquivariantBirdsCNN
 from rotation.equivariant.C4EquivariantCNN import C4EquivariantCNN
-# from rotation.invariant.V4InvariantDigitsCNN import V4InvariantDigitsCNN
-# from rotation.invariant.V4InvariantBirdsCNN import V4InvariantBirdsCNN
-# from rotation.invariant.V4EquivariantCNN import V4EquivariantCNN
-
-from standard import StandardCNN
 
 
 def get_arguments(argv):
@@ -31,10 +29,10 @@ def get_arguments(argv):
                             'c4_equivariant',
                             'c4_invariant',
                             'standard_cnn',
-                            'resnet'
+                            'resnet',
                         ])
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
-                        choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
+                        choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist','mnist_svhn'],
                         help='Dataset to train/evaluate on (DEFAULT: mnist)')
     parser.add_argument('-e', '--n_epochs', type=int, default=50,
                         help='Number of epochs (DEFAULT: 50)')
@@ -50,53 +48,72 @@ def get_arguments(argv):
     args = parser.parse_args(argv)
     return args
 
-
-def evaluate(model, loader, device, n_classes=10, dataset=None):
+def evaluate(model, loader, device, n_classes=10, dataset=None, model_name=None):
     model.eval()
     correct = 0
-    total = 0
+    total   = 0
 
     if isinstance(n_classes, tuple):
         n_bird_classes, n_digit_classes = n_classes
         total_classes = n_bird_classes + n_digit_classes
+    elif dataset == 'inaturalist_mnist':
+        n_bird_classes = 10
+        total_classes  = 20
+    elif dataset == 'mnist_svhn':
+        n_bird_classes = None
+        total_classes  = 10  
     else:
         n_bird_classes = None
-        total_classes = n_classes
+        total_classes  = n_classes
 
     correct_per_class = [0] * total_classes
     total_per_class   = [0] * total_classes
 
     with torch.no_grad():
         for batch in loader:
-            if dataset == 'inaturalist_mnist':
+            if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
                 x, y, tasks = batch
+                n_bird_classes = 10
+                if args.dataset == 'mnist_svhn':
+                    tasks = ["bird" if t == "mnist" else "digit" for t in tasks]
             else:
                 x, y = batch
                 tasks = None
 
-            x, y = x.to(device), y.to(device)
+            x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
-            if tasks is not None:
+            if tasks is not None and args.model != 'standard_cnn':
+                n_bird_classes = 10
                 out, bird_mask, digit_mask = model(x, tasks)
 
                 preds = torch.empty(x.size(0), dtype=torch.long, device=device)
                 if bird_mask.any():
-                    preds[bird_mask]  = out[bird_mask, :n_bird_classes].max(1).indices
+                    preds[bird_mask]  = out[bird_mask,  :n_bird_classes].argmax(1)
                 if digit_mask.any():
-                    preds[digit_mask] = out[digit_mask, :10].max(1).indices
+                    preds[digit_mask] = out[digit_mask, :n_bird_classes].argmax(1) + n_bird_classes
 
-                # Offset digit labels so they don't collide with bird class indices
                 y_offset = y.clone()
                 y_offset[digit_mask] += n_bird_classes
-                preds[digit_mask]    += n_bird_classes
+
+            elif tasks is not None and args.model == 'standard_cnn':
+                out   = model(x)
+                preds = out.argmax(dim=1)
+
+                if args.dataset == 'inaturalist_mnist':
+                    digit_mask = torch.tensor([t == "digit" for t in tasks], device=device)
+                    y_offset   = y.clone()
+                    y_offset[digit_mask] += 10
+                else:
+                    y_offset = y
+
             else:
-                out = model(x)
+                out      = model(x)
                 preds    = out.argmax(dim=1)
                 y_offset = y
 
             correct += (preds == y_offset).sum().item()
             total   += y.size(0)
-
+            
             for i in range(len(y)):
                 label = y_offset[i].item()
                 total_per_class[label] += 1
@@ -176,20 +193,24 @@ def main():
         elif args.model == 'resnet':
             model = ResNetBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
-            n_bird_classes, _ = n_classes
+            n_bird_classes = n_classes # to get n_bird_classes
             model = C4InvariantCNN(n_bird_classes).to(device)
+        elif args.dataset == 'mnist_svhn':
+            model = C4InvariantCNN(n_classes).to(device)
         else:
-            raise ValueError(f"Dataset {args.model} is not supported.")
+            raise ValueError(f"Dataset {args.dataset} is not supported.")
     elif args.model == 'c4_equivariant':
         if args.dataset in ['mnist', 'colormnist', 'svhn']:
             model = C4EquivariantDigitsCNN(in_channels=in_channels).to(device)
         elif args.dataset == 'inaturalist':
             model = C4EquivariantBirdsCNN(n_classes).to(device)
         elif args.dataset == 'inaturalist_mnist':
-            n_bird_classes, _ = n_classes
-            model = C4EquivariantCNN(n_bird_classes, args.task).to(device)
+            n_bird_classes = n_classes  # to get n_bird_classes
+            model = C4EquivariantCNN(n_bird_classes + n_classes, args.task).to(device)
+        elif args.dataset == 'mnist_svhn':
+            model = C4EquivariantCNN(n_classes, args.task).to(device)
         else:
-            raise ValueError(f"Dataset {args.model} is not supported.")
+            raise ValueError(f"Dataset {args.dataset} is not supported.")
     # elif args.model == 'v4_invariant':
     #     if args.dataset in ['mnist', 'colormnist', 'svhn']:
     #         model = V4InvariantDigitsCNN(in_channels=in_channels)
@@ -208,8 +229,11 @@ def main():
     #         model = V4EquivariantCNN(n_classes).to(device)
     #     else:
     #         raise ValueError(f"Dataset {args.model} is not supported.")
-    elif args.model == 'standard_cnn':
-        model = StandardCNN(args.dataset).to(device)
+    elif args.model == 'standard_cnn': 
+        if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
+            model = StandardCNNDualHead(args.dataset).to(device)
+        else:
+            model = StandardCNN(args.dataset).to(device)
     else:
         raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
 
@@ -240,53 +264,85 @@ def main():
         total_loss = 0
         correct_train = 0
         total_train = 0
-
         for batch in train_loader:
-            if args.dataset == 'inaturalist_mnist':
+            if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
                 x, y, tasks = batch
+                n_bird_classes = 10
+                if args.dataset == 'mnist_svhn':
+                    tasks = ["bird" if t == "mnist" else "digit" for t in tasks]
             else:
                 x, y = batch
                 tasks = None
+                n_bird_classes = None
 
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
 
-            if tasks is not None:
+            if tasks is not None and args.model != 'standard_cnn':
+                n_bird_classes = 10
                 out, bird_mask, digit_mask = model(x, tasks)
 
+                # ── Loss: per-head, no offset, y is always 0–9 ──────────────
                 loss = torch.tensor(0.0, device=device)
                 if bird_mask.any():
-                    loss += criterion(out[bird_mask, :n_bird_classes], y[bird_mask])
+                    loss = loss + criterion(out[bird_mask, :n_bird_classes], y[bird_mask])
                 if digit_mask.any():
-                    loss += criterion(out[digit_mask, :10], y[digit_mask])
+                    loss = loss + criterion(out[digit_mask, :n_bird_classes], y[digit_mask])
 
-                # Accuracy: pick the right slice per sample
-                predicted = torch.empty(x.size(0), dtype=torch.long, device=device)
+                # ── Predictions + offset only for accuracy bookkeeping ───────
+                preds = torch.empty(x.size(0), dtype=torch.long, device=device)
                 if bird_mask.any():
-                    predicted[bird_mask]  = out[bird_mask, :n_bird_classes].max(1).indices
+                    preds[bird_mask]  = out[bird_mask,  :n_bird_classes].argmax(1)
                 if digit_mask.any():
-                    predicted[digit_mask] = out[digit_mask, :10].max(1).indices
+                    preds[digit_mask] = out[digit_mask, :n_bird_classes].argmax(1) + n_bird_classes
+
+                y_offset = y.clone()
+                y_offset[digit_mask] += n_bird_classes
+
+            elif tasks is not None and args.model == 'standard_cnn':
+                out   = model(x)
+                preds = out.argmax(dim=1)
+
+                if args.dataset == 'inaturalist_mnist':
+                    digit_mask = torch.tensor([t == "digit" for t in tasks], device=device)
+                    y_offset   = y.clone()
+                    y_offset[digit_mask] += 10
+                else:
+                    y_offset = y
+
+                loss = criterion(out, y_offset)  # standard_cnn has 20 outputs, offset is correct
+
             else:
-                out = model(x)
-                loss = criterion(out, y)
-                predicted = out.max(1).indices
+                out      = model(x)
+                preds    = out.argmax(dim=1)
+                y_offset = y
+                loss     = criterion(out, y_offset)
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0) 
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
             total_loss    += loss.item()
             total_train   += y.size(0)
-            correct_train += predicted.eq(y).sum().item()
+            correct_train += preds.eq(y_offset).sum().item()
+
+            # add after first batch
+            # print(f"y range: {y.min().item()} - {y.max().item()}")
+            # print(f"y_offset range: {y_offset.min().item()} - {y_offset.max().item()}")
+            # print(f"preds range: {preds.min().item()} - {preds.max().item()}")
 
         train_acc = 100. * correct_train / total_train
-        test_acc, correct_pc, total_pc = evaluate(model, test_loader, device, n_classes, dataset=args.dataset)
+        test_acc, correct_pc, total_pc = evaluate(
+                                    model, test_loader, device, n_classes,
+                                    dataset=args.dataset, model_name=args.model   # ← add this
+                                )
         print(f"Epoch {epoch + 1:>3}: Loss={total_loss:.4f}  "
               f"Train={train_acc:.2f}%  Test={test_acc:.2f}%")
 
         print("  Per-class accuracy:")
-        for i in range(n_classes):
+        n_print_classes = 20 if args.dataset == 'inaturalist_mnist' else n_classes
+        for i in range(n_print_classes):
             if total_pc[i] > 0:
                 acc = 100 * correct_pc[i] / total_pc[i]
                 print(f"    Class {i}: {acc:.2f}%  ({correct_pc[i]}/{total_pc[i]})")

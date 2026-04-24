@@ -14,69 +14,9 @@ Gates (sigmoid → 0…1):
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
 
-from C4Block import C4Block
-from C4GroupConv import C4GroupConv
-from D4Block import D4Block
-from D4GroupConv import D4GroupConv
-
-# ── Backbones ─────────────────────────────────────────────────────────────────
-
-class C4Backbone(nn.Module):
-    """
-    C4-equivariant backbone: lift → 3 group conv blocks.
-
-    out_channels = 128 per group element
-    group_size   = 4
-    tensor depth = 512 channels
-    """
-    out_channels = 128
-    group_size   = 4
-
-    def __init__(self, in_channels: int = 3):
-        super().__init__()
-        self.lift   = C4GroupConv(in_channels, 16, 3, padding=1, lifting=True)
-        self.block1 = C4Block(16,  32)
-        self.pool1  = nn.MaxPool2d(2)
-        self.block2 = C4Block(32,  64)
-        self.pool2  = nn.MaxPool2d(2)
-        self.block3 = C4Block(64, 128)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = F.relu(self.lift(x))
-        x = self.pool1(self.block1(x))
-        x = self.pool2(self.block2(x))
-        return self.block3(x)                   # [B, 512, H, W]
-
-
-class D4Backbone(nn.Module):
-    """
-    D4-equivariant backbone: lift → 3 group conv blocks.
-
-    out_channels = 128 per group element
-    group_size   = 8  (4 rotations × 2 reflections)
-    tensor depth = 1024 channels  ← 2× C4Backbone memory
-
-    Memory tip: if OOM, set out_channels=64 here and in MultiGatedCNN heads.
-    """
-    out_channels = 128
-    group_size   = 8
-
-    def __init__(self, in_channels: int = 3):
-        super().__init__()
-        self.lift   = D4GroupConv(in_channels, 16, 3, padding=1, lifting=True)
-        self.block1 = D4Block(16,  32)
-        self.pool1  = nn.MaxPool2d(2)
-        self.block2 = D4Block(32,  64)
-        self.pool2  = nn.MaxPool2d(2)
-        self.block3 = D4Block(64, 128)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = F.relu(self.lift(x))
-        x = self.pool1(self.block1(x))
-        x = self.pool2(self.block2(x))
-        return self.block3(x)                   # [B, 1024, H, W]
-
+from backbone import C4Backbone, D4Backbone, C4GroupConv, D4GroupConv 
 
 # ── Multi-Gate CNN ─────────────────────────────────────────────────────────────
 
@@ -95,9 +35,9 @@ class MultiGatedCNN(nn.Module):
 
     def __init__(
         self,
-        num_bird_classes: int,
+        num_classes: int,
         in_channels:      int  = 3,
-        backbone_cls             = None,    # C4Backbone (default) or D4Backbone
+        backbone_cls             = None,    # C4Backbone (default)
     ):
         super().__init__()
 
@@ -126,11 +66,11 @@ class MultiGatedCNN(nn.Module):
         self.global_pool = nn.AdaptiveAvgPool2d(1)
 
         # ── Classification heads ───────────────────────────────────────────────
-        self.bird_head_inv   = nn.Linear(C,  num_bird_classes)
-        self.digit_head_inv  = nn.Linear(C,  10)
+        self.svhn_head_inv   = nn.Linear(C,  num_classes) # dataset 1 - svhn | inaturalist
+        self.mnist_head_inv  = nn.Linear(C,  10) # dataset 2
 
-        self.bird_head_equi  = nn.Linear(CG, num_bird_classes)
-        self.digit_head_equi = nn.Linear(CG, 10)
+        self.svhn_head_equi  = nn.Linear(CG, num_classes)
+        self.mnist_head_equi = nn.Linear(CG, 10)
 
    
     def _apply_rotation_invariance(self, f: torch.Tensor) -> torch.Tensor:
@@ -148,7 +88,12 @@ class MultiGatedCNN(nn.Module):
 
     def forward(self, x, tasks=None):
         # 1. Backbone
-        feat = self.backbone(x)                             # [B, CG, H, W]
+        raw_feat = self.backbone(x)                             # [B, CG, H, W]
+
+        if hasattr(raw_feat, 'tensor'):
+            feat = raw_feat.tensor
+        else:
+            feat = raw_feat
 
         # 2. Gate
         gates = self.gate(feat)                             # [B, 2]
@@ -169,27 +114,29 @@ class MultiGatedCNN(nn.Module):
         # 5. Route by task
         if tasks is None:
             # Binary mode — use bird head for both classes
-            out = g_blend * self.bird_head_inv(inv) + (1 - g_blend) * self.bird_head_equi(equi)
+            out = g_blend * self.svhn_head_inv(inv) + (1 - g_blend) * self.svhn_head_equi(equi)
             return out, gates
 
         # Multi-class mode — route to correct head per sample
-        bird_mask  = torch.tensor([t == "bird"  for t in tasks], device=x.device)
-        digit_mask = torch.tensor([t == "digit" for t in tasks], device=x.device)
+        # bird_mask  = torch.tensor([t == "bird"  for t in tasks], device=x.device)
+        # digit_mask = torch.tensor([t == "digit" for t in tasks], device=x.device)
 
-        n_bird  = self.bird_head_inv.out_features
-        n_digit = self.digit_head_inv.out_features
-        out     = torch.zeros(x.size(0), max(n_bird, n_digit), device=x.device)
+        svhn_mask  = torch.tensor([t == "svhn"  for t in tasks], device=x.device)
+        mnist_mask = torch.tensor([t == "mnist" for t in tasks], device=x.device)
+        n_svhn  = self.svhn_head_inv.out_features
+        n_mnist = self.mnist_head_inv.out_features
+        out     = torch.zeros(x.size(0), max(n_svhn, n_mnist), device=x.device)
 
-        if bird_mask.any():
-            g  = g_blend[bird_mask]
-            oi = self.bird_head_inv(inv[bird_mask])
-            oe = self.bird_head_equi(equi[bird_mask])
-            out[bird_mask, :n_bird] = g * oi + (1 - g) * oe
+        if svhn_mask.any():
+            g  = g_blend[svhn_mask]
+            oi = self.svhn_head_inv(inv[svhn_mask])
+            oe = self.svhn_head_equi(equi[svhn_mask])
+            out[svhn_mask, :n_svhn] = g * oi + (1 - g) * oe
 
-        if digit_mask.any():
-            g  = g_blend[digit_mask]
-            oi = self.digit_head_inv(inv[digit_mask])
-            oe = self.digit_head_equi(equi[digit_mask])
-            out[digit_mask, :n_digit] = g * oi + (1 - g) * oe
+        if mnist_mask.any():
+            g  = g_blend[mnist_mask]
+            oi = self.mnist_head_inv(inv[mnist_mask])
+            oe = self.mnist_head_equi(equi[mnist_mask])
+            out[mnist_mask, :n_mnist] = g * oi + (1 - g) * oe
 
-        return out, gates, bird_mask, digit_mask
+        return out, gates, svhn_mask, mnist_mask

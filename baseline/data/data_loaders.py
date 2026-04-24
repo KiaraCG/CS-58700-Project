@@ -6,6 +6,8 @@ from torchvision import datasets, transforms
 from torch.utils.data import Dataset, DataLoader, random_split, Subset, ConcatDataset
 
 from .birds_loader import get_bird_data_loaders,bird_data_dir, RANDOM_SEED,TransformDataset
+from .mulitclass_loader import get_multiclass_loaders
+from .digits_mutliclass_loader import get_svhn_mnist_loaders
 
 # bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_train_small/bird_train"
 # bird_data_dir = "/scratch/scholar/shams3/inatbirds/birds_100classes"
@@ -165,12 +167,13 @@ def get_bird_mnist_data_loaders(args):
     ])
 
     mnist_transform = transforms.Compose([
-        transforms.Resize((64, 64)),      
+        transforms.Resize((64, 64)),
         transforms.Grayscale(num_output_channels=3),
         transforms.ToTensor(),
         transforms.Normalize((0.485, 0.456, 0.406),
-                            (0.229, 0.224, 0.225)),
+                             (0.229, 0.224, 0.225)),
     ])
+
     if reflect_images:
         flip = transforms.RandomHorizontalFlip(p=1.0)
         bird_transform  = transforms.Compose([flip, bird_transform])
@@ -178,7 +181,7 @@ def get_bird_mnist_data_loaders(args):
 
     # --- Birds (keeps same species every run via RANDOM_SEED) ---
     full_birds = datasets.ImageFolder(bird_data_dir)
-    n_bird_classes = len(full_birds.classes)
+    n_bird_classes = 10
     train_size = int(0.8 * len(full_birds))
     test_size  = len(full_birds) - train_size
     generator  = torch.Generator().manual_seed(RANDOM_SEED)
@@ -341,7 +344,9 @@ def get_loaders(args):
     elif dataset == 'inaturalist':
         return get_bird_data_loaders(args)
     elif dataset == 'inaturalist_mnist':
-        return get_bird_mnist_data_loaders(args)
+        return get_multiclass_loaders(args)
+    elif dataset == 'mnist_svhn':
+        return get_svhn_mnist_loaders(args)
     else:
         raise ValueError(f"Unknown dataset: {dataset}")
 

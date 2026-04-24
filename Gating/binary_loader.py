@@ -1,24 +1,23 @@
 """
-multiclass_loader.py
-====================
-Multi-class DataLoader for joint bird + digit classification.
-
-Returns batches of (image, label, task) where:
-    task = "bird"  → label = species index (0 to n_bird_classes-1)
-    task = "digit" → label = digit (0-9)
+binary_loader.py
+================
+Simple binary DataLoader: bird=1, digit=0.
+No task strings, no multi-head routing — just (image, label) pairs.
 
 Usage:
-    from multiclass_loader import get_multiclass_loaders
-    train_loader, test_loader, n_bird_classes = get_multiclass_loaders(args)
+    from binary_loader import get_binary_loaders
+    train_loader, test_loader = get_binary_loaders(args)
 """
 
+import os
 import random
+
 import torch
 from torch.utils.data import Dataset, DataLoader, ConcatDataset, Subset, random_split
 from torchvision import datasets, transforms
 
 
-BIRD_DIR    = "/scratch/scholar/shams3/inatbirds/birds_train_small/bird_train"
+BIRD_DIR    = "/scratch/scholar/shams3/inatbirds/birds_100classes"
 RANDOM_SEED = 42
 IMG_SIZE    = 64
 
@@ -55,7 +54,7 @@ def _mnist_transform(rotate=False, reflect=False):
 # ── Datasets ──────────────────────────────────────────────────────────────────
 
 class BirdDataset(Dataset):
-    """Birds — keeps original species label, tags task='bird'."""
+    """Birds from ImageFolder — label = 1."""
     def __init__(self, subset, transform):
         self.subset    = subset
         self.transform = transform
@@ -64,12 +63,12 @@ class BirdDataset(Dataset):
         return len(self.subset)
 
     def __getitem__(self, idx):
-        x, y = self.subset[idx]
-        return self.transform(x), y, "bird"
+        x, _ = self.subset[idx]          # ignore species label
+        return self.transform(x), 1      # binary label: bird = 1
 
 
 class DigitDataset(Dataset):
-    """MNIST digits — keeps original digit label (0-9), tags task='digit'."""
+    """MNIST digits — label = 0."""
     def __init__(self, train: bool, transform):
         self._ds = datasets.MNIST(
             './data', train=train, download=True, transform=transform
@@ -79,92 +78,55 @@ class DigitDataset(Dataset):
         return len(self._ds)
 
     def __getitem__(self, idx):
-        x, y = self._ds[idx]
-        return x, y, "digit"
+        x, _ = self._ds[idx]             # ignore digit label
+        return x, 0                      # binary label: digit = 0
 
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
-def get_multiclass_loaders(args):
+def get_loaders(args):
     """
-    Returns (train_loader, test_loader, n_bird_classes).
-
-    Each batch: (images [B,3,64,64], labels [B], tasks [B])
-        tasks[i] = 'bird'  → labels[i] is species index
-        tasks[i] = 'digit' → labels[i] is digit 0-9
+    Returns (train_loader, test_loader).
+    Each batch: (images [B,3,64,64], labels [B])  — labels are 0 or 1.
     """
     batch_size     = args.batch_size
     rotate_images  = getattr(args, 'rotate_images',  False)
     reflect_images = getattr(args, 'reflect_images', False)
 
-    # Train: always clean — augment only at test time for equivariance probing
+    # Train transforms: always clean (augment only at test time for probing)
     bird_train_tf  = _bird_transform()
     mnist_train_tf = _mnist_transform()
 
-    # Test: optionally rotated/reflected for equivariance probing
+    # Test transforms: optionally augmented for equivariance probing
     bird_test_tf   = _bird_transform(rotate=rotate_images,  reflect=reflect_images)
     mnist_test_tf  = _mnist_transform(rotate=rotate_images, reflect=reflect_images)
 
-
-# ── Birds: 80/20 split (Filtered to 10 classes) ────────────────────────────
-    full_birds     = datasets.ImageFolder(BIRD_DIR)
-    n_bird_classes = 10 # Force it to exactly 10 classes
-    
-    # 1. Filter out everything except classes 0 through 9
-    valid_indices  = [i for i, label in enumerate(full_birds.targets) if label < n_bird_classes]
-    filtered_birds = Subset(full_birds, valid_indices)
-
-    # 2. Calculate sizes based on the FILTERED dataset, not the full one
-    train_size     = int(0.8 * len(filtered_birds))
-    test_size      = len(filtered_birds) - train_size
-    
-    # 3. Split the filtered dataset
-    generator      = torch.Generator().manual_seed(RANDOM_SEED)
+    # ── Birds: 80/20 split ────────────────────────────────────────────────────
+    full_birds = datasets.ImageFolder(BIRD_DIR)
+    train_size = int(0.8 * len(full_birds))
+    test_size  = len(full_birds) - train_size
+    generator  = torch.Generator().manual_seed(RANDOM_SEED)
     bird_train_sub, bird_test_sub = random_split(
-        filtered_birds, [train_size, test_size], generator=generator
+        full_birds, [train_size, test_size], generator=generator
     )
 
-    # 4. Wrap with your custom dataset class/transforms
     bird_train = BirdDataset(bird_train_sub, bird_train_tf)
     bird_test  = BirdDataset(bird_test_sub,  bird_test_tf)
-    print(f"[birds] {n_bird_classes} classes | "
-          f"train {len(bird_train)} | test {len(bird_test)}")
 
-
-    # ── MNIST: stratified subsample to match bird counts ─────────────────────
+    # ── MNIST: subsample to match bird counts ─────────────────────────────────
     def subsample(ds, n):
-        rng = random.Random(RANDOM_SEED)
-        # Group indices by class label
-        class_indices = {}
-        for i in range(len(ds)):
-            _, label, _ = ds[i]
-            class_indices.setdefault(label, []).append(i)
-        n_classes = len(class_indices)
-        per_class = n // n_classes
-        remainder = n %  n_classes
-        chosen = []
-        for cls, idxs in sorted(class_indices.items()):
-            # Give one extra sample to the first `remainder` classes
-            k = per_class + (1 if cls < remainder else 0)
-            chosen.extend(rng.sample(idxs, min(k, len(idxs))))
-        return Subset(ds, chosen)
+        idx = random.Random(RANDOM_SEED).sample(range(len(ds)), min(n, len(ds)))
+        return Subset(ds, idx)
 
-    mnist_train = subsample(
-        DigitDataset(train=True,  transform=mnist_train_tf), len(bird_train)
-    )
-    mnist_test  = subsample(
-        DigitDataset(train=False, transform=mnist_test_tf),  len(bird_test)
-    )
+    mnist_train = subsample(DigitDataset(train=True,  transform=mnist_train_tf), len(bird_train))
+    mnist_test  = subsample(DigitDataset(train=False, transform=mnist_test_tf),  len(bird_test))
 
     # ── Combine ───────────────────────────────────────────────────────────────
     train_dataset = ConcatDataset([bird_train, mnist_train])
     test_dataset  = ConcatDataset([bird_test,  mnist_test])
 
-    print(f"[multiclass] train {len(train_dataset)} "
-          f"({len(bird_train)} birds / {len(mnist_train)} digits) | "
-          f"test {len(test_dataset)} "
-          f"({len(bird_test)} birds / {len(mnist_test)} digits) | "
-          f"{n_bird_classes} bird classes")
+    print(f"[binary] train {len(train_dataset)} ({len(bird_train)} birds + {len(mnist_train)} digits) | "
+          f"test {len(test_dataset)} ({len(bird_test)} birds + {len(mnist_test)} digits)")
 
     loader_kwargs = dict(
         batch_size=batch_size,
@@ -176,4 +138,4 @@ def get_multiclass_loaders(args):
     train_loader = DataLoader(train_dataset, shuffle=True,  **loader_kwargs)
     test_loader  = DataLoader(test_dataset,  shuffle=False, **loader_kwargs)
 
-    return train_loader, test_loader, n_bird_classes
+    return train_loader, test_loader

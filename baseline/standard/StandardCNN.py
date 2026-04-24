@@ -23,8 +23,17 @@ class StandardCNN(nn.Module):
             input_size = (3, 32, 32)
         elif dataset == 'inaturalist':
             in_channels = 3
-            num_classes = 1000
-            input_size = (3, 224, 224)
+            num_classes = 10
+            input_size  = (3, 64, 64)    # ← 224 → 64
+
+        elif dataset == 'inaturalist_mnist':
+            in_channels = 3
+            num_classes = 20
+            input_size  = (3, 64, 64)    # ← (1, 224) → (3, 64)
+        elif dataset == 'mnist_svhn':
+            in_channels = 3
+            num_classes = 20
+            input_size = (3, 32, 32)
         else:
             raise ValueError("Invalid dataset. Should be one of ['mnist', 'colormnist', 'svhn'].")
 

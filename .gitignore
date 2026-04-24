@@ -1,2 +1,5 @@
 __pycache__/
 slurm_logs/
+data/
+Gating/slurm_logs/
+baseline/data/
