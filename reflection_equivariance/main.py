@@ -8,6 +8,7 @@ from .StandardResNet import StandardResNet
 from .V4BirdsCNN import V4BirdsCNN
 from .V4DigitsCNN import V4DigitsCNN
 from .D4InvariantResNet import D4InvariantResNet
+from .C4CNN import C4InvariantBirdsCNN, C4EquivariantBirdsCNN
 from data_loaders import get_loaders
 
 
@@ -15,7 +16,7 @@ def get_arguments(argv):
     parser = argparse.ArgumentParser(
         description='Training model on MNIST / SVHN / ColorMNIST / iNaturalist / iNaturalist + MNIST.')
     parser.add_argument('-m', '--model', type=str, default='v4cnn',
-                        choices=['v4cnn', 'standard_cnn', 'd4resnet', 'standard_resnet'],
+                        choices=['v4cnn', 'standard_cnn', 'd4resnet', 'standard_resnet', 'c4cnn_invariant', 'c4cnn_equivariant'],
                         help='Dataset to train/evaluate on (DEFAULT: v4cnn)')
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist'],
@@ -77,6 +78,16 @@ def main():
             model = V4BirdsCNN(n_classes).to(device)
         else:
             raise ValueError(f"Dataset {args.dataset} is not supported for v4cnn.")
+    elif args.model == 'c4cnn_invariant':
+        if args.dataset in ['inaturalist', 'inaturalist_mnist']:
+            model = C4InvariantBirdsCNN(n_classes).to(device)
+        else:
+            raise ValueError(f"Dataset {args.dataset} is not supported for c4cnn_invariant.")
+    elif args.model == 'c4cnn_equivariant':
+        if args.dataset in ['inaturalist', 'inaturalist_mnist']:
+            model = C4EquivariantBirdsCNN(n_classes).to(device)
+        else:
+            raise ValueError(f"Dataset {args.dataset} is not supported for c4cnn_equivariant.")
     elif args.model == 'standard_cnn':
         model = StandardCNN(args.dataset).to(device)
     elif args.dataset in ['inaturalist', 'inaturalist_mnist', 'mnist']:
