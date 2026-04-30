@@ -1,0 +1,171 @@
+Using downloaded and verified file: ./data/train_32x32.mat
+Using downloaded and verified file: ./data/test_32x32.mat
+[svhn+mnist] train 60000 (30000 SVHN + 30000 MNIST) | test 10000 (5000 SVHN + 5000 MNIST)
+  MNIST train augmentation: random 90° rotations (teaches invariance)
+  SVHN  train augmentation: none (preserves orientation sensitivity)
+Model  : multi_gated_c4  (C4Backbone)
+Device : cuda
+Epochs : 50  |  Batch: 64  |  LR: 0.0001
+Rotate test: True  |  Reflect test: False
+------------------------------------------------------------
+Starting training...
+  [gates] svhn:  rot=0.885 ref=0.038 | mnist: rot=1.000 ref=0.000
+Epoch   1: Loss=88067.8679  Train=19.67%  Test=26.73%
+  SVHN  acc=18.78%  gates: rot=0.390  ref=0.440
+  MNIST acc=34.68%  gates: rot=0.132  ref=0.345
+Epoch   2: Loss=3228.4072  Train=38.70%  Test=42.66%
+  SVHN  acc=19.68%  gates: rot=0.383  ref=0.459
+  MNIST acc=65.64%  gates: rot=0.114  ref=0.472
+Epoch   3: Loss=2814.9292  Train=46.83%  Test=51.42%
+  SVHN  acc=20.76%  gates: rot=0.347  ref=0.468
+  MNIST acc=82.08%  gates: rot=0.133  ref=0.421
+Epoch   4: Loss=2651.3928  Train=50.08%  Test=49.67%
+  SVHN  acc=19.94%  gates: rot=0.315  ref=0.413
+  MNIST acc=79.40%  gates: rot=0.129  ref=0.329
+Epoch   5: Loss=2529.5979  Train=52.27%  Test=54.16%
+  SVHN  acc=21.24%  gates: rot=0.323  ref=0.447
+  MNIST acc=87.08%  gates: rot=0.107  ref=0.243
+  [gates] svhn:  rot=0.324 ref=0.445 | mnist: rot=0.115 ref=0.218
+Epoch   6: Loss=2442.5595  Train=54.06%  Test=56.48%
+  SVHN  acc=24.38%  gates: rot=0.267  ref=0.402
+  MNIST acc=88.58%  gates: rot=0.196  ref=0.338
+Epoch   7: Loss=2366.0341  Train=55.24%  Test=56.82%
+  SVHN  acc=25.02%  gates: rot=0.354  ref=0.445
+  MNIST acc=88.62%  gates: rot=0.162  ref=0.262
+Epoch   8: Loss=2282.1944  Train=56.95%  Test=58.05%
+  SVHN  acc=25.72%  gates: rot=0.373  ref=0.432
+  MNIST acc=90.38%  gates: rot=0.222  ref=0.239
+Epoch   9: Loss=2206.8996  Train=58.47%  Test=60.55%
+  SVHN  acc=29.46%  gates: rot=0.274  ref=0.412
+  MNIST acc=91.64%  gates: rot=0.179  ref=0.277
+Epoch  10: Loss=2143.0261  Train=59.50%  Test=60.89%
+  SVHN  acc=29.56%  gates: rot=0.304  ref=0.391
+  MNIST acc=92.22%  gates: rot=0.248  ref=0.340
+  [gates] svhn:  rot=0.318 ref=0.391 | mnist: rot=0.194 ref=0.286
+Epoch  11: Loss=2008.7934  Train=62.32%  Test=62.03%
+  SVHN  acc=31.24%  gates: rot=0.278  ref=0.386
+  MNIST acc=92.82%  gates: rot=0.182  ref=0.295
+Epoch  12: Loss=1957.3924  Train=63.16%  Test=62.82%
+  SVHN  acc=32.78%  gates: rot=0.252  ref=0.349
+  MNIST acc=92.86%  gates: rot=0.206  ref=0.236
+Epoch  13: Loss=1917.5040  Train=63.95%  Test=62.80%
+  SVHN  acc=32.62%  gates: rot=0.253  ref=0.355
+  MNIST acc=92.98%  gates: rot=0.257  ref=0.283
+Epoch  14: Loss=1879.5145  Train=64.75%  Test=63.76%
+  SVHN  acc=34.32%  gates: rot=0.224  ref=0.310
+  MNIST acc=93.20%  gates: rot=0.277  ref=0.266
+Epoch  15: Loss=1850.1438  Train=65.41%  Test=64.09%
+  SVHN  acc=35.42%  gates: rot=0.186  ref=0.283
+  MNIST acc=92.76%  gates: rot=0.168  ref=0.242
+  [gates] svhn:  rot=0.201 ref=0.299 | mnist: rot=0.213 ref=0.281
+Epoch  16: Loss=1815.3341  Train=66.07%  Test=64.48%
+  SVHN  acc=35.56%  gates: rot=0.184  ref=0.269
+  MNIST acc=93.40%  gates: rot=0.242  ref=0.270
+Epoch  17: Loss=1786.0791  Train=66.65%  Test=65.85%
+  SVHN  acc=36.96%  gates: rot=0.192  ref=0.261
+  MNIST acc=94.74%  gates: rot=0.209  ref=0.250
+Epoch  18: Loss=1760.0779  Train=66.96%  Test=65.55%
+  SVHN  acc=36.94%  gates: rot=0.160  ref=0.253
+  MNIST acc=94.16%  gates: rot=0.232  ref=0.282
+Epoch  19: Loss=1728.4042  Train=67.84%  Test=66.10%
+  SVHN  acc=38.68%  gates: rot=0.155  ref=0.251
+  MNIST acc=93.52%  gates: rot=0.226  ref=0.257
+Epoch  20: Loss=1710.4079  Train=68.20%  Test=65.97%
+  SVHN  acc=38.26%  gates: rot=0.153  ref=0.234
+  MNIST acc=93.68%  gates: rot=0.238  ref=0.225
+  [gates] svhn:  rot=0.163 ref=0.246 | mnist: rot=0.275 ref=0.200
+Epoch  21: Loss=1624.4698  Train=69.82%  Test=67.06%
+  SVHN  acc=39.84%  gates: rot=0.142  ref=0.247
+  MNIST acc=94.28%  gates: rot=0.198  ref=0.256
+Epoch  22: Loss=1600.3317  Train=70.39%  Test=66.83%
+  SVHN  acc=39.98%  gates: rot=0.160  ref=0.254
+  MNIST acc=93.68%  gates: rot=0.263  ref=0.289
+Epoch  23: Loss=1586.2784  Train=70.60%  Test=67.44%
+  SVHN  acc=40.56%  gates: rot=0.167  ref=0.277
+  MNIST acc=94.32%  gates: rot=0.246  ref=0.332
+Epoch  24: Loss=1569.9707  Train=70.98%  Test=67.40%
+  SVHN  acc=40.16%  gates: rot=0.167  ref=0.293
+  MNIST acc=94.64%  gates: rot=0.210  ref=0.321
+Epoch  25: Loss=1552.9716  Train=71.11%  Test=67.76%
+  SVHN  acc=40.82%  gates: rot=0.140  ref=0.237
+  MNIST acc=94.70%  gates: rot=0.216  ref=0.318
+  [gates] svhn:  rot=0.197 ref=0.261 | mnist: rot=0.170 ref=0.286
+Epoch  26: Loss=1543.5062  Train=71.50%  Test=68.09%
+  SVHN  acc=41.32%  gates: rot=0.168  ref=0.258
+  MNIST acc=94.86%  gates: rot=0.207  ref=0.280
+Epoch  27: Loss=1525.5607  Train=71.84%  Test=68.12%
+  SVHN  acc=41.52%  gates: rot=0.129  ref=0.226
+  MNIST acc=94.72%  gates: rot=0.242  ref=0.289
+Epoch  28: Loss=1517.0791  Train=71.96%  Test=67.12%
+  SVHN  acc=39.86%  gates: rot=0.175  ref=0.299
+  MNIST acc=94.38%  gates: rot=0.247  ref=0.307
+Epoch  29: Loss=1500.0981  Train=72.31%  Test=68.31%
+  SVHN  acc=42.08%  gates: rot=0.152  ref=0.261
+  MNIST acc=94.54%  gates: rot=0.211  ref=0.320
+Epoch  30: Loss=1486.7345  Train=72.57%  Test=67.97%
+  SVHN  acc=41.92%  gates: rot=0.165  ref=0.278
+  MNIST acc=94.02%  gates: rot=0.236  ref=0.249
+  [gates] svhn:  rot=0.184 ref=0.294 | mnist: rot=0.231 ref=0.230
+Epoch  31: Loss=1438.4805  Train=73.59%  Test=69.11%
+  SVHN  acc=43.24%  gates: rot=0.147  ref=0.250
+  MNIST acc=94.98%  gates: rot=0.236  ref=0.284
+Epoch  32: Loss=1426.5394  Train=73.67%  Test=69.13%
+  SVHN  acc=42.78%  gates: rot=0.150  ref=0.281
+  MNIST acc=95.48%  gates: rot=0.233  ref=0.297
+Epoch  33: Loss=1421.4340  Train=73.85%  Test=68.49%
+  SVHN  acc=41.94%  gates: rot=0.135  ref=0.261
+  MNIST acc=95.04%  gates: rot=0.212  ref=0.290
+Epoch  34: Loss=1410.5845  Train=73.99%  Test=69.02%
+  SVHN  acc=42.98%  gates: rot=0.168  ref=0.289
+  MNIST acc=95.06%  gates: rot=0.233  ref=0.288
+Epoch  35: Loss=1408.0094  Train=74.05%  Test=68.77%
+  SVHN  acc=42.60%  gates: rot=0.152  ref=0.286
+  MNIST acc=94.94%  gates: rot=0.216  ref=0.301
+  [gates] svhn:  rot=0.162 ref=0.255 | mnist: rot=0.246 ref=0.309
+Epoch  36: Loss=1399.8181  Train=74.32%  Test=68.87%
+  SVHN  acc=43.28%  gates: rot=0.157  ref=0.278
+  MNIST acc=94.46%  gates: rot=0.252  ref=0.284
+Epoch  37: Loss=1392.1317  Train=74.47%  Test=69.22%
+  SVHN  acc=43.36%  gates: rot=0.149  ref=0.281
+  MNIST acc=95.08%  gates: rot=0.228  ref=0.283
+Epoch  38: Loss=1385.1851  Train=74.48%  Test=69.03%
+  SVHN  acc=43.10%  gates: rot=0.154  ref=0.276
+  MNIST acc=94.96%  gates: rot=0.235  ref=0.275
+Epoch  39: Loss=1377.4120  Train=74.73%  Test=69.16%
+  SVHN  acc=43.44%  gates: rot=0.139  ref=0.257
+  MNIST acc=94.88%  gates: rot=0.245  ref=0.278
+Epoch  40: Loss=1372.0834  Train=74.73%  Test=68.96%
+  SVHN  acc=42.98%  gates: rot=0.165  ref=0.282
+  MNIST acc=94.94%  gates: rot=0.243  ref=0.283
+  [gates] svhn:  rot=0.162 ref=0.280 | mnist: rot=0.265 ref=0.299
+Epoch  41: Loss=1342.2242  Train=75.40%  Test=69.40%
+  SVHN  acc=43.84%  gates: rot=0.146  ref=0.269
+  MNIST acc=94.96%  gates: rot=0.228  ref=0.269
+Epoch  42: Loss=1338.9316  Train=75.41%  Test=69.69%
+  SVHN  acc=44.18%  gates: rot=0.156  ref=0.280
+  MNIST acc=95.20%  gates: rot=0.229  ref=0.277
+Epoch  43: Loss=1335.1628  Train=75.54%  Test=69.53%
+  SVHN  acc=44.08%  gates: rot=0.150  ref=0.268
+  MNIST acc=94.98%  gates: rot=0.234  ref=0.282
+Epoch  44: Loss=1332.1407  Train=75.40%  Test=69.50%
+  SVHN  acc=43.98%  gates: rot=0.153  ref=0.280
+  MNIST acc=95.02%  gates: rot=0.231  ref=0.289
+Epoch  45: Loss=1326.7612  Train=75.63%  Test=69.56%
+  SVHN  acc=43.92%  gates: rot=0.164  ref=0.288
+  MNIST acc=95.20%  gates: rot=0.227  ref=0.287
+  [gates] svhn:  rot=0.166 ref=0.269 | mnist: rot=0.206 ref=0.210
+Epoch  46: Loss=1323.5184  Train=75.78%  Test=69.56%
+  SVHN  acc=44.02%  gates: rot=0.150  ref=0.278
+  MNIST acc=95.10%  gates: rot=0.241  ref=0.287
+Epoch  47: Loss=1321.4787  Train=75.65%  Test=69.69%
+  SVHN  acc=44.18%  gates: rot=0.150  ref=0.277
+  MNIST acc=95.20%  gates: rot=0.226  ref=0.284
+Epoch  48: Loss=1314.4690  Train=75.86%  Test=69.61%
+  SVHN  acc=44.16%  gates: rot=0.160  ref=0.282
+  MNIST acc=95.06%  gates: rot=0.242  ref=0.286
+Epoch  49: Loss=1314.6821  Train=75.80%  Test=69.65%
+  SVHN  acc=44.30%  gates: rot=0.155  ref=0.284
+  MNIST acc=95.00%  gates: rot=0.240  ref=0.286
+Epoch  50: Loss=1309.0178  Train=75.97%  Test=69.82%
+  SVHN  acc=44.42%  gates: rot=0.157  ref=0.302
+  MNIST acc=95.22%  gates: rot=0.219  ref=0.287
