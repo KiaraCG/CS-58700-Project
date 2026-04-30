@@ -1,78 +1,122 @@
 """
-Multi-Gate Group CNN
-====================
-Soft-gated against Hard-gating CNN that blends rotation-invariant and rotation-equivariant paths.
-Supports both C4 and D4 backbones as drop-in swaps.
+MultiGatedCNN.py
+================
+Soft multi-gate group CNN for joint classification.
 
-Gates (sigmoid → 0…1):
-    g_rot  →  1 = trust rotation-invariant path   (C4 and D4)
-    g_ref  →  1 = trust reflection-invariant path  (meaningful only with D4Backbone)
-    # g_col →  1 = trust color-invariant path      - not baseline has been implemented yet
+Backbones (from backbone.py):
+    PlainResNetBackbone      — no group averaging (baseline)
+    C4ResNetBackbone         — 4 rotations
+    C4ResNetBackbone_TSBN    — C4 + frozen early layers + task-specific BN
+    D4ResNetBackbone         — 4 rotations + reflections
 
+Gates:
+    NoGate          — fixed equal blend (ablation baseline)
+    LearnableGate   — learnable temperature + Gumbel noise
 """
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torchvision import models
 
-from backbone import C4Backbone, D4Backbone, C4GroupConv, D4GroupConv 
+from Gating.backbone import C4ResNetBackbone_TSBN
 
-# ── Multi-Gate CNN ─────────────────────────────────────────────────────────────
+# ── Gates ──────────────────────────────────────────────────────────────────────
+
+class NoGate(nn.Module):
+    """Fixed equal blend — gate contributes nothing. Baseline for gate ablation."""
+    def __init__(self, in_features: int, n_choices: int = 3):
+        super().__init__()
+        self.n = n_choices
+
+    def forward(self, x: torch.Tensor):
+        B       = x.size(0)
+        gates   = torch.full((B, self.n), 1.0 / self.n, device=x.device)
+        entropy = torch.zeros(B, device=x.device)
+        return gates, entropy
+
+
+class LearnableGate(nn.Module):
+    """
+    Softmax gate with learnable temperature + Gumbel noise.
+    - log_temp: starts at init_temp, sharpens toward discrete over training
+    - Gumbel noise: encourages commitment (training only)
+    - Returns entropy for regularization loss
+    """
+    def __init__(self, in_features: int, n_choices: int = 3, init_temp: float = 1.0):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(in_features, 64),
+            nn.LayerNorm(64),
+            nn.GELU(),
+            nn.Linear(64, 32),
+            nn.GELU(),
+            nn.Linear(32, n_choices),
+        )
+        self.log_temp = nn.Parameter(torch.tensor(init_temp).log())
+
+    def forward(self, x: torch.Tensor):
+        logits = self.net(x)                                        # [B, n_choices]
+        temp   = self.log_temp.exp().clamp(min=0.01)
+
+        if self.training:
+            gumbel = -torch.empty_like(logits).exponential_().log()
+            logits = logits + gumbel
+
+        gates   = torch.softmax(logits / temp, dim=-1)             # [B, n_choices]
+        entropy = -(gates * (gates + 1e-8).log()).sum(dim=-1)      # [B]
+        return gates, entropy
+
+
+# ── Model ──────────────────────────────────────────────────────────────────────
 
 class MultiGatedCNN(nn.Module):
     """
-    Soft multi-gate group CNN for joint bird/digit classification.
-
-    The key experiment: does g_rot diverge between bird and digit samples?
-        birds  → expect g_rot → 1  (network learns rotation invariance)
-        digits → expect g_rot → 0  (network learns rotation sensitivity: 6 ≠ 9)
-
-    With D4Backbone, g_ref adds a second axis:
-        birds  → g_ref may → 1  (flipped bird is still a bird)
-        digits → g_ref → 0      (flipped digit may change class)
+    Args:
+        num_classes : number of classes for task_a (svhn=10, inaturalist=10)
+        in_channels : input image channels (3 for RGB)
+        backbone_cls: one of the backbone classes above
+        gate_cls    : NoGate or LearnableGate
     """
+
+
 
     def __init__(
         self,
-        num_classes: int,
-        in_channels:      int  = 3,
-        backbone_cls             = None,    # C4Backbone (default)
+        num_classes  : int,
+        in_channels  : int  = 3,
+        backbone_cls        = None,
+        gate_cls            = None,
     ):
         super().__init__()
 
-        backbone_cls     = backbone_cls or C4Backbone
-        self.backbone    = backbone_cls(in_channels)
+        # ── Backbone ──────────────────────────────────────────────────────────
 
-        C  = self.backbone.out_channels     # channels per group element  (128)
-        G  = self.backbone.group_size       # 4 (C4) or 8 (D4)
-        CG = C * G                          # total feature channels (512 or 1024)
+        backbone_cls = backbone_cls 
+        gate_cls     = gate_cls     or LearnableGate
+
+        self.backbone = backbone_cls(in_channels=in_channels)
+        self.gate     = gate_cls(in_features=self.backbone.out_channels * self.backbone.group_size)
+        C  = self.backbone.out_channels     # channels per group element
+        G  = self.backbone.group_size       # 1 (plain), 4 (C4), 8 (D4)
+        CG = C * G                          # total feature channels
 
         self._C = C
         self._G = G
 
         # ── Gate ──────────────────────────────────────────────────────────────
-        # Output: [g_rot, g_ref]
-        # To add color gate: change Linear(64, 2) → Linear(64, 3)
-        self.gate = nn.Sequential(
-            nn.AdaptiveAvgPool2d(1),
-            nn.Flatten(),
-            nn.Linear(CG, 64),
-            nn.ReLU(),
-            nn.Linear(64, 2),               # ← change to 3 for +g_col
-            nn.Sigmoid(),
-        )
 
         self.global_pool = nn.AdaptiveAvgPool2d(1)
 
         # ── Classification heads ───────────────────────────────────────────────
-        self.svhn_head_inv   = nn.Linear(C,  num_classes) # dataset 1 - svhn | inaturalist
-        self.mnist_head_inv  = nn.Linear(C,  10) # dataset 2
+        # task_a: svhn or inaturalist
+        # task_b: mnist (always 10 classes)
+        self.task_a_head_inv  = nn.Linear(C,  num_classes)
+        self.task_b_head_inv  = nn.Linear(C,  10)
 
-        self.svhn_head_equi  = nn.Linear(CG, num_classes)
-        self.mnist_head_equi = nn.Linear(CG, 10)
+        self.task_a_head_equi = nn.Linear(CG, num_classes)
+        self.task_b_head_equi = nn.Linear(CG, 10)
 
-   
+    # ── Symmetry ops ──────────────────────────────────────────────────────────
+
     def _apply_rotation_invariance(self, f: torch.Tensor) -> torch.Tensor:
         return self.global_pool(f).expand_as(f)
 
@@ -80,63 +124,60 @@ class MultiGatedCNN(nn.Module):
     def _apply_reflection_invariance(f: torch.Tensor) -> torch.Tensor:
         return (f + torch.flip(f, dims=[3])) / 2.0
 
-    # @staticmethod
-    # def _apply_color_invariance(f: torch.Tensor) -> torch.Tensor:
-    #     Not Implemented Error
+    # ── Forward ───────────────────────────────────────────────────────────────
 
-    # ── Forward ─────────────────────────────────────────────────────────────────
-
-    def forward(self, x, tasks=None):
-        # 1. Backbone
-        raw_feat = self.backbone(x)                             # [B, CG, H, W]
-
-        if hasattr(raw_feat, 'tensor'):
-            feat = raw_feat.tensor
+    def forward(self, x: torch.Tensor, tasks=None):
+        # 1. Backbone — C4ResNetBackbone_TSBN needs task_idx for its BN layers
+        if isinstance(self.backbone, C4ResNetBackbone_TSBN) and tasks is not None:
+            task_a_count = sum(t in ("svhn", "bird") for t in tasks)
+            task_idx     = 0 if task_a_count >= len(tasks) // 2 else 1
+            raw_feat     = self.backbone(x, task_idx)
         else:
-            feat = raw_feat
+            raw_feat = self.backbone(x)
 
-        # 2. Gate
-        gates = self.gate(feat)                             # [B, 2]
-        g_rot = gates[:, 0].view(-1, 1, 1, 1)
-        g_ref = gates[:, 1].view(-1, 1, 1, 1)
+        feat = raw_feat.tensor if hasattr(raw_feat, 'tensor') else raw_feat
+        # feat: [B, CG, H, W]
 
-        # 3. Blend features
-        f = g_ref * self._apply_reflection_invariance(feat) + (1 - g_ref) * feat
-        f = g_rot * self._apply_rotation_invariance(f)      + (1 - g_rot) * f
+        # 2. Gate — operates on spatially pooled features
+        pooled_for_gate         = self.global_pool(feat).flatten(1)    # [B, CG]
+        gates, gate_entropy     = self.gate(pooled_for_gate)           # [B, 3], [B]
 
-        # 4. Two paths
-        pooled = self.global_pool(f).flatten(1)             # [B, CG]
-        inv    = pooled.view(pooled.size(0), self._G, self._C).mean(dim=1)  # [B, C]
-        equi   = pooled                                     # [B, CG]
+        # 3. Blend: identity / rotation-invariant / reflection-invariant
+        g   = gates.view(gates.size(0), 3, 1, 1, 1)
+        f   = (g[:, 0] * feat
+             + g[:, 1] * self._apply_rotation_invariance(feat)
+             + g[:, 2] * self._apply_reflection_invariance(feat))      # [B, CG, H, W]
 
-        g_blend = gates[:, 0].unsqueeze(1)                  # [B, 1]
+        # 4. Two paths from blended features
+        pooled  = self.global_pool(f).flatten(1)                       # [B, CG]
+        inv     = pooled.view(pooled.size(0), self._G, self._C).mean(dim=1)  # [B, C]
+        equi    = pooled                                               # [B, CG]
 
-        # 5. Route by task
+        # rotation gate weight drives inv/equi blend
+        g_blend = gates[:, 1].unsqueeze(1)                            # [B, 1]
+
+        # 5. Binary mode (no task labels)
         if tasks is None:
-            # Binary mode — use bird head for both classes
-            out = g_blend * self.svhn_head_inv(inv) + (1 - g_blend) * self.svhn_head_equi(equi)
-            return out, gates
+            out = (g_blend       * self.task_a_head_inv(inv)
+                 + (1 - g_blend) * self.task_a_head_equi(equi))
+            return out, gates, gate_entropy
 
-        # Multi-class mode — route to correct head per sample
-        # bird_mask  = torch.tensor([t == "bird"  for t in tasks], device=x.device)
-        # digit_mask = torch.tensor([t == "digit" for t in tasks], device=x.device)
+        # 6. Multi-task mode — route each sample to its head
+        task_a_mask = torch.tensor([t in ("svhn", "bird")  for t in tasks], device=x.device)
+        task_b_mask = torch.tensor([t in ("digit", "mnist") for t in tasks], device=x.device)
 
-        svhn_mask  = torch.tensor([t == "svhn"  for t in tasks], device=x.device)
-        mnist_mask = torch.tensor([t == "mnist" for t in tasks], device=x.device)
-        n_svhn  = self.svhn_head_inv.out_features
-        n_mnist = self.mnist_head_inv.out_features
-        out     = torch.zeros(x.size(0), max(n_svhn, n_mnist), device=x.device)
+        n_a = self.task_a_head_inv.out_features
+        n_b = self.task_b_head_inv.out_features
+        out = torch.zeros(x.size(0), max(n_a, n_b), device=x.device)
 
-        if svhn_mask.any():
-            g  = g_blend[svhn_mask]
-            oi = self.svhn_head_inv(inv[svhn_mask])
-            oe = self.svhn_head_equi(equi[svhn_mask])
-            out[svhn_mask, :n_svhn] = g * oi + (1 - g) * oe
+        if task_a_mask.any():
+            g_ = g_blend[task_a_mask]
+            out[task_a_mask, :n_a] = (g_       * self.task_a_head_inv(inv[task_a_mask])
+                                    + (1 - g_) * self.task_a_head_equi(equi[task_a_mask]))
 
-        if mnist_mask.any():
-            g  = g_blend[mnist_mask]
-            oi = self.mnist_head_inv(inv[mnist_mask])
-            oe = self.mnist_head_equi(equi[mnist_mask])
-            out[mnist_mask, :n_mnist] = g * oi + (1 - g) * oe
+        if task_b_mask.any():
+            g_ = g_blend[task_b_mask]
+            out[task_b_mask, :n_b] = (g_       * self.task_b_head_inv(inv[task_b_mask])
+                                    + (1 - g_) * self.task_b_head_equi(equi[task_b_mask]))
 
-        return out, gates, svhn_mask, mnist_mask
+        return out, gates, gate_entropy, task_a_mask, task_b_mask

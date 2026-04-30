@@ -28,17 +28,23 @@ import torch.nn as nn
 from Gating.digits_mutliclass_loader import get_svhn_mnist_loaders
 from Gating.mulitclass_loader import get_multiclass_loaders
 
-from Gating.MultiGatedCNN import MultiGatedCNN
-from Gating.backbone import C4Backbone, D4Backbone, C4ResNetBackbone, D4ResNetBackbone, SteerableBackbone
+from Gating.MultiGatedCNN import MultiGatedCNN , LearnableGate, NoGate
+from Gating.backbone import C4Backbone, D4Backbone
+from Gating.backbone import PlainResNetBackbone, C4ResNetBackbone, C4ResNetBackbone_TSBN, D4ResNetBackbone, SteerableBackbone
+from steerable_models.SteerableResNet import SteerableResNet
 
-from steerable_cnn.SteerableResNet import SteerableResNet
+import os
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 
 def get_arguments(argv):
     parser = argparse.ArgumentParser(description='Gated C4/D4 — SVHN + MNIST')
     parser.add_argument('-m', '--model', type=str, default='multi_gated_c4',
-                        choices=['multi_gated_c4', 'multi_gated_d4', 'multi_gated_c4_resnet', 'multi_gated_d4_resnet', 'multi_gated_steerable'])
+                        choices=['multi_gated_c4', 'multi_gated_d4', 'multi_gated_c4_resnet', 'multi_gated_d4_resnet', 'multi_gated_steerable',
+                                 'c4_tsbn', 'plain_resnet'])
     parser.add_argument('-d', '--dataset', type=str, default='svhn',
                         choices=['bird', 'svhn'])
+    parser.add_argument('-g','--gate_cls', type=str, default='learnable',
+                        choices=['none', 'learnable'])
     parser.add_argument('-e', '--n_epochs',       type=int,   default=50)
     parser.add_argument('-lr', '--learning_rate', type=float, default=1e-4)
     parser.add_argument('-bs', '--batch_size',    type=int,   default=64)
@@ -49,33 +55,34 @@ def get_arguments(argv):
 
 # ── Evaluation ────────────────────────────────────────────────────────────────
 
-def evaluate(model, loader, device):
+def evaluate(model, loader, task_a_label, device):
     model.eval()
     correct = total = 0
 
-    gate_sum   = {'svhn':  torch.zeros(2, device=device),
-                  'mnist': torch.zeros(2, device=device)}
-    gate_count = {'svhn': 0, 'mnist': 0}
+    gate_sum   = {task_a_label:  torch.zeros(3, device=device),
+                  'mnist': torch.zeros(3, device=device)}
+    gate_count = {task_a_label: 0, 'mnist': 0}
 
-    correct_per_task = {'svhn': 0, 'mnist': 0}
-    total_per_task   = {'svhn': 0, 'mnist': 0}
+    correct_per_task = {task_a_label: 0, 'mnist': 0}
+    total_per_task   = {task_a_label: 0, 'mnist': 0}
 
     with torch.no_grad():
         for x, y, tasks in loader:
             x, y = x.to(device), y.to(device)
 
-            out, gates, svhn_mask, mnist_mask = model(x, tasks)
+              # ── 3. Unpack all 5 return values ──────────────────────────────────
+            out, gates, gate_entropy, task_a_mask, task_b_mask = model(x, tasks)
 
             preds = torch.empty(x.size(0), dtype=torch.long, device=device)
-            if svhn_mask.any():
-                preds[svhn_mask]  = out[svhn_mask,  :10].max(1).indices
-            if mnist_mask.any():
-                preds[mnist_mask] = out[mnist_mask, :10].max(1).indices
+            if task_a_mask.any():
+                preds[task_a_mask]  = out[task_a_mask,  :10].max(1).indices
+            if task_b_mask.any():
+                preds[task_b_mask] = out[task_b_mask, :10].max(1).indices
 
             correct += (preds == y).sum().item()
             total   += y.size(0)
 
-            for task, mask in [('svhn', svhn_mask), ('mnist', mnist_mask)]:
+            for task, mask in [(task_a_label, task_a_mask), ('mnist', task_b_mask)]:
                 if mask.any():
                     gate_sum[task]   += gates[mask].sum(dim=0)
                     gate_count[task] += mask.sum().item()
@@ -84,7 +91,7 @@ def evaluate(model, loader, device):
 
     gate_avg = {
         t: gate_sum[t] / max(gate_count[t], 1)
-        for t in ('svhn', 'mnist')
+        for t in (task_a_label, 'mnist')
     }
 
     return (
@@ -101,7 +108,7 @@ def main():
     args   = get_arguments(sys.argv[1:])
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    train_loader, test_loader, n_classes = get_svhn_mnist_loaders(args)
+    # train_loader, test_loader, n_classes = get_svhn_mnist_loaders(args)
     if args.dataset == 'bird':
         train_loader, test_loader, n_classes = get_multiclass_loaders(args)
     else:
@@ -118,29 +125,49 @@ def main():
         backbone_cls = D4ResNetBackbone
     elif args.model == 'multi_gated_steerable':
         steerable_resnet = SteerableResNet()
-        backbone_cls = SteerableBackbone(steerable_resnet)
+        backbone_cls = lambda ic: SteerableBackbone(steerable_resnet)
+    elif args.model == 'c4_tsbn':
+        backbone_cls = C4ResNetBackbone_TSBN
+    elif args.model == 'plain_resnet':
+        backbone_cls = PlainResNetBackbone
 
-    # backbone_cls = C4Backbone if args.model == 'multi_gated_c4' else D4Backbone
-    model = MultiGatedCNN(
-        num_classes=10,   # repurposed: svhn head
-        in_channels=3,
-        backbone_cls=backbone_cls,
-    ).to(device)
+    # mnist_svhn ablations
+    if args.gate_cls == 'none':
+        model = MultiGatedCNN(
+            num_classes=10,   # repurposed: svhn head
+            in_channels=3,
+            backbone_cls=backbone_cls,
+            gate_cls=NoGate,
+        ).to(device)
+    elif args.gate_cls == 'learnable':
+        model = MultiGatedCNN(
+            num_classes=10,   # repurposed: svhn head
+            in_channels=3,
+            backbone_cls=backbone_cls,
+            gate_cls=LearnableGate,
+        ).to(device)
 
     # digit_head also has 10 outputs — both heads identical size, perfect for this
+    model = model.to(device)
 
-    print(f"Model  : {args.model}  ({backbone_cls.__name__})")
+    print(f"Model  : {args.model}")
+    print (f"Gate   : {args.gate_cls}")
+    print (f"Dataset : {args.dataset}")
     print(f"Device : {device}")
     print(f"Epochs : {args.n_epochs}  |  Batch: {args.batch_size}  |  LR: {args.learning_rate}")
     print(f"Rotate test: {args.rotate_images}  |  Reflect test: {args.reflect_images}")
+
     print("-" * 60)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
     criterion = nn.CrossEntropyLoss()
 
+    # Detect task label once before training (not per batch)
+    task_a_label = "bird" if args.dataset == "bird" else "svhn"
+
     print("Starting training...")
-    for epoch in range(0, args.n_epochs):
+    for epoch in range(args.n_epochs):
         model.train()
         total_loss = correct_train = total_train = 0
 
@@ -148,52 +175,63 @@ def main():
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
             optimizer.zero_grad(set_to_none=True)
-            out, gates, svhn_mask, mnist_mask = model(x, tasks)
 
-            loss = torch.tensor(0.0, device=device)
-            if svhn_mask.any():
-                loss += criterion(out[svhn_mask,  :10], y[svhn_mask])
-            if mnist_mask.any():
-                loss += criterion(out[mnist_mask, :10], y[mnist_mask])
+            # ── 3. Unpack all 5 return values ──────────────────────────────────
+            out, gates, gate_entropy, task_a_mask, task_b_mask = model(x, tasks)
 
+            losses = []
+            if task_a_mask.any():
+                losses.append(criterion(out[task_a_mask, :10], y[task_a_mask]))
+            if task_b_mask.any():
+                losses.append(criterion(out[task_b_mask, :10], y[task_b_mask]))
+
+            if not losses:
+                continue
+
+            loss = sum(losses) + 0.01 * gate_entropy.mean()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
 
             predicted = torch.empty(x.size(0), dtype=torch.long, device=device)
-            if svhn_mask.any():
-                predicted[svhn_mask]  = out[svhn_mask,  :10].max(1).indices
-            if mnist_mask.any():
-                predicted[mnist_mask] = out[mnist_mask, :10].max(1).indices
+            if task_a_mask.any():
+                predicted[task_a_mask] = out[task_a_mask, :10].max(1).indices
+            if task_b_mask.any():
+                predicted[task_b_mask] = out[task_b_mask, :10].max(1).indices
 
             total_loss    += loss.item()
             total_train   += y.size(0)
             correct_train += predicted.eq(y).sum().item()
 
-            # Print gates once per epoch
+            # ── 4. Gate print — 3 values now (id, rot, ref) ────────────────────
             if total_train <= args.batch_size and epoch % 5 == 0:
-                sg = gates[svhn_mask].mean(0)  if svhn_mask.any()  else torch.zeros(2)
-                mg = gates[mnist_mask].mean(0) if mnist_mask.any() else torch.zeros(2)
-                print(f"  [gates] svhn:  rot={sg[0]:.3f} ref={sg[1]:.3f} | "
-                      f"mnist: rot={mg[0]:.3f} ref={mg[1]:.3f}")
+                sg = gates[task_a_mask].mean(0) if task_a_mask.any() else torch.zeros(3)
+                mg = gates[task_b_mask].mean(0) if task_b_mask.any() else torch.zeros(3)
+                print(f"  [gates] {task_a_label}: "
+                      f"id={sg[0]:.3f} rot={sg[1]:.3f} ref={sg[2]:.3f} | "
+                      f"mnist: "
+                      f"id={mg[0]:.3f} rot={mg[1]:.3f} ref={mg[2]:.3f}")
 
         scheduler.step()
         train_acc = 100. * correct_train / total_train
         test_acc, correct_pt, total_pt, gate_avg = evaluate(
-            model, test_loader, device
+            model, test_loader, task_a_label, device
         )
 
-        svhn_acc  = 100 * correct_pt['svhn']  / max(total_pt['svhn'],  1)
-        mnist_acc = 100 * correct_pt['mnist'] / max(total_pt['mnist'], 1)
+        task_a_acc = 100 * correct_pt[task_a_label] / max(total_pt[task_a_label], 1)
+        mnist_acc  = 100 * correct_pt['mnist']       / max(total_pt['mnist'],      1)
 
         print(f"Epoch {epoch+1:>3}: Loss={total_loss:.4f}  "
               f"Train={train_acc:.2f}%  Test={test_acc:.2f}%")
-        print(f"  SVHN  acc={svhn_acc:.2f}%  "
-              f"gates: rot={gate_avg['svhn'][0]:.3f}  ref={gate_avg['svhn'][1]:.3f}")
-        print(f"  MNIST acc={mnist_acc:.2f}%  "
-              f"gates: rot={gate_avg['mnist'][0]:.3f}  ref={gate_avg['mnist'][1]:.3f}")
-
-        
+        print(f"  {task_a_label:5s} acc={task_a_acc:.2f}%  "
+              f"gates: id={gate_avg[task_a_label][0]:.3f}  "
+              f"rot={gate_avg[task_a_label][1]:.3f}  "
+              f"ref={gate_avg[task_a_label][2]:.3f}")
+        print(f"  mnist acc={mnist_acc:.2f}%  "
+              f"gates: id={gate_avg['mnist'][0]:.3f}  "
+              f"rot={gate_avg['mnist'][1]:.3f}  "
+              f"ref={gate_avg['mnist'][2]:.3f}")        
 
 if __name__ == '__main__':
     main()
+

@@ -1,0 +1,692 @@
+Using downloaded and verified file: ./data/train_32x32.mat
+Using downloaded and verified file: ./data/test_32x32.mat
+[svhn+mnist] train 60000 (30000 SVHN + 30000 MNIST) | test 10000 (5000 SVHN + 5000 MNIST)
+  MNIST train augmentation: random 90° rotations (teaches invariance)
+  SVHN  train augmentation: none (preserves orientation sensitivity)
+[birds] 10 classes | train 400 | test 100
+[multiclass] train 800 (400 birds / 400 digits) | test 200 (100 birds / 100 digits) | 10 bird classes
+Model  : multi_gated_c4_resnet  (C4ResNetBackbone)
+Device : cuda
+Epochs : 50  |  Batch: 64  |  LR: 0.0001
+Rotate test: False  |  Reflect test: False
+------------------------------------------------------------
+Starting training...
+  [gates] svhn:  rot=0.481 ref=0.614 | mnist: rot=0.472 ref=0.597
+Epoch   1: Loss=59.5829  Train=16.62%  Test=10.00%
+  bird  acc=10.00%  gates: rot=0.505  ref=0.536
+  MNIST acc=10.00%  gates: rot=0.396  ref=0.550
+Epoch   2: Loss=53.8677  Train=25.88%  Test=18.50%
+  bird  acc=10.00%  gates: rot=0.503  ref=0.602
+  MNIST acc=27.00%  gates: rot=0.409  ref=0.609
+Epoch   3: Loss=48.1261  Train=39.88%  Test=22.50%
+  bird  acc=12.00%  gates: rot=0.339  ref=0.625
+  MNIST acc=33.00%  gates: rot=0.084  ref=0.675
+Epoch   4: Loss=43.7695  Train=45.50%  Test=29.50%
+  bird  acc=8.00%  gates: rot=0.252  ref=0.647
+  MNIST acc=51.00%  gates: rot=0.046  ref=0.696
+Epoch   5: Loss=39.5163  Train=51.00%  Test=34.50%
+  bird  acc=12.00%  gates: rot=0.226  ref=0.645
+  MNIST acc=57.00%  gates: rot=0.024  ref=0.737
+  [gates] svhn:  rot=0.217 ref=0.653 | mnist: rot=0.029 ref=0.742
+Epoch   6: Loss=35.8974  Train=55.75%  Test=36.00%
+  bird  acc=12.00%  gates: rot=0.241  ref=0.660
+  MNIST acc=60.00%  gates: rot=0.029  ref=0.761
+Epoch   7: Loss=32.5439  Train=62.75%  Test=37.00%
+  bird  acc=14.00%  gates: rot=0.222  ref=0.664
+  MNIST acc=60.00%  gates: rot=0.028  ref=0.735
+Epoch   8: Loss=30.1693  Train=63.50%  Test=50.50%
+  bird  acc=21.00%  gates: rot=0.180  ref=0.700
+  MNIST acc=80.00%  gates: rot=0.011  ref=0.805
+Epoch   9: Loss=28.2839  Train=66.88%  Test=31.00%
+  bird  acc=8.00%  gates: rot=0.144  ref=0.714
+  MNIST acc=54.00%  gates: rot=0.004  ref=0.841
+Epoch  10: Loss=26.1669  Train=69.12%  Test=48.50%
+  bird  acc=14.00%  gates: rot=0.178  ref=0.686
+  MNIST acc=83.00%  gates: rot=0.016  ref=0.789
+  [gates] svhn:  rot=0.154 ref=0.687 | mnist: rot=0.008 ref=0.822
+Epoch  11: Loss=23.4031  Train=72.62%  Test=51.00%
+  bird  acc=14.00%  gates: rot=0.150  ref=0.694
+  MNIST acc=88.00%  gates: rot=0.011  ref=0.771
+Epoch  12: Loss=21.8032  Train=75.88%  Test=54.50%
+  bird  acc=17.00%  gates: rot=0.117  ref=0.713
+  MNIST acc=92.00%  gates: rot=0.009  ref=0.809
+Epoch  13: Loss=20.3528  Train=75.38%  Test=52.00%
+  bird  acc=18.00%  gates: rot=0.107  ref=0.725
+  MNIST acc=86.00%  gates: rot=0.008  ref=0.820
+Epoch  14: Loss=18.8165  Train=79.62%  Test=45.00%
+  bird  acc=15.00%  gates: rot=0.100  ref=0.731
+  MNIST acc=75.00%  gates: rot=0.012  ref=0.794
+Epoch  15: Loss=18.0503  Train=80.38%  Test=48.00%
+  bird  acc=18.00%  gates: rot=0.066  ref=0.763
+  MNIST acc=78.00%  gates: rot=0.006  ref=0.832
+  [gates] svhn:  rot=0.065 ref=0.758 | mnist: rot=0.005 ref=0.822
+Epoch  16: Loss=16.2437  Train=83.62%  Test=44.50%
+  bird  acc=15.00%  gates: rot=0.064  ref=0.762
+  MNIST acc=74.00%  gates: rot=0.007  ref=0.795
+Epoch  17: Loss=14.0599  Train=86.25%  Test=39.50%
+  bird  acc=12.00%  gates: rot=0.052  ref=0.776
+  MNIST acc=67.00%  gates: rot=0.003  ref=0.846
+Epoch  18: Loss=14.2820  Train=86.38%  Test=35.00%
+  bird  acc=14.00%  gates: rot=0.059  ref=0.786
+  MNIST acc=56.00%  gates: rot=0.004  ref=0.855
+Epoch  19: Loss=13.0004  Train=86.25%  Test=39.00%
+  bird  acc=10.00%  gates: rot=0.052  ref=0.763
+  MNIST acc=68.00%  gates: rot=0.007  ref=0.807
+Epoch  20: Loss=11.7085  Train=88.12%  Test=43.50%
+  bird  acc=14.00%  gates: rot=0.035  ref=0.776
+  MNIST acc=73.00%  gates: rot=0.007  ref=0.789
+  [gates] svhn:  rot=0.013 ref=0.804 | mnist: rot=0.006 ref=0.804
+Epoch  21: Loss=9.9002  Train=91.25%  Test=52.00%
+  bird  acc=13.00%  gates: rot=0.030  ref=0.780
+  MNIST acc=91.00%  gates: rot=0.007  ref=0.788
+Epoch  22: Loss=9.4401  Train=91.62%  Test=54.00%
+  bird  acc=13.00%  gates: rot=0.022  ref=0.783
+  MNIST acc=95.00%  gates: rot=0.006  ref=0.789
+Epoch  23: Loss=7.9372  Train=95.12%  Test=50.00%
+  bird  acc=9.00%  gates: rot=0.023  ref=0.783
+  MNIST acc=91.00%  gates: rot=0.005  ref=0.786
+Epoch  24: Loss=8.2890  Train=93.38%  Test=52.00%
+  bird  acc=12.00%  gates: rot=0.016  ref=0.794
+  MNIST acc=92.00%  gates: rot=0.003  ref=0.817
+Epoch  25: Loss=7.6617  Train=93.50%  Test=49.00%
+  bird  acc=13.00%  gates: rot=0.017  ref=0.786
+  MNIST acc=85.00%  gates: rot=0.005  ref=0.768
+  [gates] svhn:  rot=0.010 ref=0.802 | mnist: rot=0.005 ref=0.782
+Epoch  26: Loss=7.6015  Train=93.88%  Test=45.00%
+  bird  acc=13.00%  gates: rot=0.014  ref=0.796
+  MNIST acc=77.00%  gates: rot=0.002  ref=0.827
+Epoch  27: Loss=6.7221  Train=95.12%  Test=44.00%
+  bird  acc=9.00%  gates: rot=0.017  ref=0.776
+  MNIST acc=79.00%  gates: rot=0.005  ref=0.766
+Epoch  28: Loss=6.6148  Train=95.12%  Test=52.00%
+  bird  acc=14.00%  gates: rot=0.011  ref=0.794
+  MNIST acc=90.00%  gates: rot=0.003  ref=0.790
+Epoch  29: Loss=6.1215  Train=94.88%  Test=50.00%
+  bird  acc=12.00%  gates: rot=0.010  ref=0.790
+  MNIST acc=88.00%  gates: rot=0.003  ref=0.792
+Epoch  30: Loss=8.0157  Train=93.12%  Test=50.50%
+  bird  acc=11.00%  gates: rot=0.011  ref=0.805
+  MNIST acc=90.00%  gates: rot=0.002  ref=0.809
+  [gates] svhn:  rot=0.015 ref=0.786 | mnist: rot=0.002 ref=0.803
+Epoch  31: Loss=5.6017  Train=95.88%  Test=50.00%
+  bird  acc=11.00%  gates: rot=0.015  ref=0.779
+  MNIST acc=89.00%  gates: rot=0.003  ref=0.765
+Epoch  32: Loss=5.3540  Train=96.25%  Test=49.00%
+  bird  acc=11.00%  gates: rot=0.011  ref=0.781
+  MNIST acc=87.00%  gates: rot=0.002  ref=0.776
+Epoch  33: Loss=5.6434  Train=96.62%  Test=52.50%
+  bird  acc=14.00%  gates: rot=0.009  ref=0.780
+  MNIST acc=91.00%  gates: rot=0.003  ref=0.779
+Epoch  34: Loss=5.3533  Train=95.62%  Test=52.00%
+  bird  acc=16.00%  gates: rot=0.010  ref=0.786
+  MNIST acc=88.00%  gates: rot=0.003  ref=0.774
+Epoch  35: Loss=5.3545  Train=96.38%  Test=48.50%
+  bird  acc=12.00%  gates: rot=0.008  ref=0.794
+  MNIST acc=85.00%  gates: rot=0.002  ref=0.796
+  [gates] svhn:  rot=0.006 ref=0.800 | mnist: rot=0.003 ref=0.782
+Epoch  36: Loss=4.4307  Train=97.00%  Test=50.50%
+  bird  acc=12.00%  gates: rot=0.010  ref=0.792
+  MNIST acc=89.00%  gates: rot=0.003  ref=0.776
+Epoch  37: Loss=4.2030  Train=97.50%  Test=49.50%
+  bird  acc=13.00%  gates: rot=0.009  ref=0.791
+  MNIST acc=86.00%  gates: rot=0.003  ref=0.783
+Epoch  38: Loss=3.7239  Train=98.62%  Test=52.50%
+  bird  acc=13.00%  gates: rot=0.007  ref=0.792
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.781
+Epoch  39: Loss=4.5750  Train=97.38%  Test=51.50%
+  bird  acc=10.00%  gates: rot=0.008  ref=0.789
+  MNIST acc=93.00%  gates: rot=0.002  ref=0.779
+Epoch  40: Loss=3.7428  Train=98.00%  Test=52.50%
+  bird  acc=13.00%  gates: rot=0.006  ref=0.796
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.777
+  [gates] svhn:  rot=0.002 ref=0.810 | mnist: rot=0.003 ref=0.774
+Epoch  41: Loss=3.5198  Train=98.25%  Test=52.50%
+  bird  acc=16.00%  gates: rot=0.007  ref=0.798
+  MNIST acc=89.00%  gates: rot=0.002  ref=0.788
+Epoch  42: Loss=3.5397  Train=98.38%  Test=54.00%
+  bird  acc=15.00%  gates: rot=0.007  ref=0.803
+  MNIST acc=93.00%  gates: rot=0.002  ref=0.784
+Epoch  43: Loss=2.9252  Train=98.75%  Test=52.00%
+  bird  acc=13.00%  gates: rot=0.006  ref=0.802
+  MNIST acc=91.00%  gates: rot=0.002  ref=0.782
+Epoch  44: Loss=2.4418  Train=99.12%  Test=53.00%
+  bird  acc=14.00%  gates: rot=0.005  ref=0.797
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.773
+Epoch  45: Loss=2.8008  Train=98.25%  Test=48.50%
+  bird  acc=12.00%  gates: rot=0.005  ref=0.798
+  MNIST acc=85.00%  gates: rot=0.002  ref=0.783
+  [gates] svhn:  rot=0.005 ref=0.794 | mnist: rot=0.001 ref=0.813
+Epoch  46: Loss=4.1715  Train=96.75%  Test=51.50%
+  bird  acc=11.00%  gates: rot=0.004  ref=0.804
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.783
+Epoch  47: Loss=3.5412  Train=97.25%  Test=53.00%
+  bird  acc=15.00%  gates: rot=0.004  ref=0.808
+  MNIST acc=91.00%  gates: rot=0.002  ref=0.794
+Epoch  48: Loss=2.8376  Train=98.62%  Test=50.00%
+  bird  acc=12.00%  gates: rot=0.005  ref=0.804
+  MNIST acc=88.00%  gates: rot=0.002  ref=0.784
+Epoch  49: Loss=3.5871  Train=97.25%  Test=52.50%
+  bird  acc=14.00%  gates: rot=0.004  ref=0.803
+  MNIST acc=91.00%  gates: rot=0.002  ref=0.778
+Epoch  50: Loss=2.3628  Train=99.38%  Test=52.50%
+  bird  acc=13.00%  gates: rot=0.005  ref=0.804
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.781
+Using downloaded and verified file: ./data/train_32x32.mat
+Using downloaded and verified file: ./data/test_32x32.mat
+[svhn+mnist] train 60000 (30000 SVHN + 30000 MNIST) | test 10000 (5000 SVHN + 5000 MNIST)
+  MNIST train augmentation: random 90° rotations (teaches invariance)
+  SVHN  train augmentation: none (preserves orientation sensitivity)
+[birds] 10 classes | train 400 | test 100
+[multiclass] train 800 (400 birds / 400 digits) | test 200 (100 birds / 100 digits) | 10 bird classes
+Model  : multi_gated_c4_resnet  (C4ResNetBackbone)
+Device : cuda
+Epochs : 50  |  Batch: 64  |  LR: 0.0001
+Rotate test: True  |  Reflect test: False
+------------------------------------------------------------
+Starting training...
+  [gates] svhn:  rot=0.529 ref=0.588 | mnist: rot=0.525 ref=0.578
+Epoch   1: Loss=58.9054  Train=16.38%  Test=17.50%
+  bird  acc=11.00%  gates: rot=0.514  ref=0.563
+  MNIST acc=24.00%  gates: rot=0.556  ref=0.601
+Epoch   2: Loss=54.2211  Train=23.00%  Test=9.50%
+  bird  acc=6.00%  gates: rot=0.531  ref=0.561
+  MNIST acc=13.00%  gates: rot=0.560  ref=0.578
+Epoch   3: Loss=50.9601  Train=34.12%  Test=15.00%
+  bird  acc=11.00%  gates: rot=0.460  ref=0.572
+  MNIST acc=19.00%  gates: rot=0.431  ref=0.595
+Epoch   4: Loss=47.3603  Train=43.38%  Test=19.00%
+  bird  acc=10.00%  gates: rot=0.419  ref=0.585
+  MNIST acc=28.00%  gates: rot=0.352  ref=0.592
+Epoch   5: Loss=42.5601  Train=48.62%  Test=12.50%
+  bird  acc=13.00%  gates: rot=0.244  ref=0.595
+  MNIST acc=12.00%  gates: rot=0.078  ref=0.635
+  [gates] svhn:  rot=0.244 ref=0.614 | mnist: rot=0.102 ref=0.631
+Epoch   6: Loss=38.7190  Train=52.75%  Test=12.00%
+  bird  acc=11.00%  gates: rot=0.197  ref=0.618
+  MNIST acc=13.00%  gates: rot=0.036  ref=0.681
+Epoch   7: Loss=33.7588  Train=60.88%  Test=17.00%
+  bird  acc=11.00%  gates: rot=0.149  ref=0.611
+  MNIST acc=23.00%  gates: rot=0.026  ref=0.653
+Epoch   8: Loss=30.7409  Train=63.25%  Test=14.50%
+  bird  acc=15.00%  gates: rot=0.107  ref=0.639
+  MNIST acc=14.00%  gates: rot=0.007  ref=0.720
+Epoch   9: Loss=28.5068  Train=66.88%  Test=17.00%
+  bird  acc=12.00%  gates: rot=0.103  ref=0.626
+  MNIST acc=22.00%  gates: rot=0.023  ref=0.686
+Epoch  10: Loss=26.5741  Train=67.12%  Test=15.00%
+  bird  acc=10.00%  gates: rot=0.080  ref=0.654
+  MNIST acc=20.00%  gates: rot=0.012  ref=0.725
+  [gates] svhn:  rot=0.065 ref=0.651 | mnist: rot=0.006 ref=0.730
+Epoch  11: Loss=22.7953  Train=75.38%  Test=16.50%
+  bird  acc=11.00%  gates: rot=0.073  ref=0.648
+  MNIST acc=22.00%  gates: rot=0.010  ref=0.703
+Epoch  12: Loss=21.9416  Train=76.50%  Test=25.00%
+  bird  acc=19.00%  gates: rot=0.056  ref=0.664
+  MNIST acc=31.00%  gates: rot=0.008  ref=0.728
+Epoch  13: Loss=20.4240  Train=76.62%  Test=18.00%
+  bird  acc=13.00%  gates: rot=0.051  ref=0.669
+  MNIST acc=23.00%  gates: rot=0.008  ref=0.721
+Epoch  14: Loss=18.5776  Train=81.00%  Test=17.50%
+  bird  acc=13.00%  gates: rot=0.035  ref=0.674
+  MNIST acc=22.00%  gates: rot=0.003  ref=0.739
+Epoch  15: Loss=17.3608  Train=82.38%  Test=17.00%
+  bird  acc=13.00%  gates: rot=0.027  ref=0.671
+  MNIST acc=21.00%  gates: rot=0.002  ref=0.727
+  [gates] svhn:  rot=0.031 ref=0.671 | mnist: rot=0.003 ref=0.734
+Epoch  16: Loss=15.7747  Train=84.62%  Test=20.00%
+  bird  acc=10.00%  gates: rot=0.023  ref=0.685
+  MNIST acc=30.00%  gates: rot=0.004  ref=0.730
+Epoch  17: Loss=15.3177  Train=85.38%  Test=22.00%
+  bird  acc=12.00%  gates: rot=0.022  ref=0.682
+  MNIST acc=32.00%  gates: rot=0.004  ref=0.744
+Epoch  18: Loss=13.2425  Train=88.00%  Test=22.00%
+  bird  acc=16.00%  gates: rot=0.020  ref=0.683
+  MNIST acc=28.00%  gates: rot=0.006  ref=0.744
+Epoch  19: Loss=12.4869  Train=89.00%  Test=17.50%
+  bird  acc=12.00%  gates: rot=0.016  ref=0.700
+  MNIST acc=23.00%  gates: rot=0.005  ref=0.758
+Epoch  20: Loss=12.7350  Train=86.75%  Test=18.50%
+  bird  acc=12.00%  gates: rot=0.017  ref=0.685
+  MNIST acc=25.00%  gates: rot=0.005  ref=0.746
+  [gates] svhn:  rot=0.011 ref=0.690 | mnist: rot=0.003 ref=0.763
+Epoch  21: Loss=9.9391  Train=92.75%  Test=26.50%
+  bird  acc=18.00%  gates: rot=0.010  ref=0.699
+  MNIST acc=35.00%  gates: rot=0.004  ref=0.736
+Epoch  22: Loss=10.7798  Train=89.50%  Test=23.50%
+  bird  acc=15.00%  gates: rot=0.008  ref=0.699
+  MNIST acc=32.00%  gates: rot=0.002  ref=0.746
+Epoch  23: Loss=9.7736  Train=93.12%  Test=22.50%
+  bird  acc=15.00%  gates: rot=0.008  ref=0.709
+  MNIST acc=30.00%  gates: rot=0.003  ref=0.757
+Epoch  24: Loss=7.9284  Train=94.75%  Test=18.50%
+  bird  acc=12.00%  gates: rot=0.009  ref=0.710
+  MNIST acc=25.00%  gates: rot=0.004  ref=0.758
+Epoch  25: Loss=6.7825  Train=94.62%  Test=21.50%
+  bird  acc=13.00%  gates: rot=0.005  ref=0.734
+  MNIST acc=30.00%  gates: rot=0.002  ref=0.771
+  [gates] svhn:  rot=0.006 ref=0.741 | mnist: rot=0.002 ref=0.781
+Epoch  26: Loss=6.3659  Train=95.88%  Test=23.00%
+  bird  acc=13.00%  gates: rot=0.005  ref=0.738
+  MNIST acc=33.00%  gates: rot=0.002  ref=0.777
+Epoch  27: Loss=6.6019  Train=95.12%  Test=22.50%
+  bird  acc=13.00%  gates: rot=0.004  ref=0.749
+  MNIST acc=32.00%  gates: rot=0.002  ref=0.777
+Epoch  28: Loss=7.2163  Train=94.38%  Test=19.00%
+  bird  acc=10.00%  gates: rot=0.004  ref=0.757
+  MNIST acc=28.00%  gates: rot=0.002  ref=0.793
+Epoch  29: Loss=6.1369  Train=96.00%  Test=24.00%
+  bird  acc=14.00%  gates: rot=0.004  ref=0.768
+  MNIST acc=34.00%  gates: rot=0.002  ref=0.801
+Epoch  30: Loss=6.0551  Train=96.00%  Test=22.00%
+  bird  acc=12.00%  gates: rot=0.003  ref=0.770
+  MNIST acc=32.00%  gates: rot=0.002  ref=0.792
+  [gates] svhn:  rot=0.003 ref=0.786 | mnist: rot=0.002 ref=0.803
+Epoch  31: Loss=5.5473  Train=96.12%  Test=22.00%
+  bird  acc=14.00%  gates: rot=0.003  ref=0.775
+  MNIST acc=30.00%  gates: rot=0.002  ref=0.802
+Epoch  32: Loss=5.3818  Train=95.75%  Test=22.50%
+  bird  acc=15.00%  gates: rot=0.003  ref=0.786
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.813
+Epoch  33: Loss=5.1305  Train=95.50%  Test=20.50%
+  bird  acc=13.00%  gates: rot=0.004  ref=0.774
+  MNIST acc=28.00%  gates: rot=0.002  ref=0.802
+Epoch  34: Loss=6.1394  Train=96.38%  Test=21.50%
+  bird  acc=11.00%  gates: rot=0.003  ref=0.779
+  MNIST acc=32.00%  gates: rot=0.002  ref=0.798
+Epoch  35: Loss=4.8889  Train=96.50%  Test=20.00%
+  bird  acc=13.00%  gates: rot=0.003  ref=0.786
+  MNIST acc=27.00%  gates: rot=0.002  ref=0.809
+  [gates] svhn:  rot=0.002 ref=0.801 | mnist: rot=0.001 ref=0.813
+Epoch  36: Loss=4.2289  Train=96.88%  Test=22.00%
+  bird  acc=14.00%  gates: rot=0.003  ref=0.794
+  MNIST acc=30.00%  gates: rot=0.002  ref=0.815
+Epoch  37: Loss=4.6374  Train=96.62%  Test=21.00%
+  bird  acc=10.00%  gates: rot=0.002  ref=0.791
+  MNIST acc=32.00%  gates: rot=0.001  ref=0.807
+Epoch  38: Loss=4.4120  Train=96.50%  Test=23.00%
+  bird  acc=14.00%  gates: rot=0.003  ref=0.791
+  MNIST acc=32.00%  gates: rot=0.002  ref=0.810
+Epoch  39: Loss=4.1623  Train=97.38%  Test=20.00%
+  bird  acc=11.00%  gates: rot=0.003  ref=0.800
+  MNIST acc=29.00%  gates: rot=0.002  ref=0.821
+Epoch  40: Loss=4.0142  Train=97.88%  Test=20.50%
+  bird  acc=11.00%  gates: rot=0.002  ref=0.800
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.821
+  [gates] svhn:  rot=0.002 ref=0.821 | mnist: rot=0.001 ref=0.836
+Epoch  41: Loss=3.1879  Train=98.62%  Test=21.50%
+  bird  acc=11.00%  gates: rot=0.002  ref=0.795
+  MNIST acc=32.00%  gates: rot=0.002  ref=0.814
+Epoch  42: Loss=4.1544  Train=97.62%  Test=20.00%
+  bird  acc=11.00%  gates: rot=0.002  ref=0.803
+  MNIST acc=29.00%  gates: rot=0.001  ref=0.819
+Epoch  43: Loss=3.2082  Train=98.00%  Test=20.50%
+  bird  acc=11.00%  gates: rot=0.002  ref=0.802
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.820
+Epoch  44: Loss=3.7146  Train=97.75%  Test=21.00%
+  bird  acc=12.00%  gates: rot=0.002  ref=0.800
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.822
+Epoch  45: Loss=2.7368  Train=98.25%  Test=21.50%
+  bird  acc=14.00%  gates: rot=0.002  ref=0.805
+  MNIST acc=29.00%  gates: rot=0.001  ref=0.821
+  [gates] svhn:  rot=0.001 ref=0.822 | mnist: rot=0.001 ref=0.834
+Epoch  46: Loss=6.8938  Train=96.00%  Test=19.00%
+  bird  acc=9.00%  gates: rot=0.002  ref=0.805
+  MNIST acc=29.00%  gates: rot=0.001  ref=0.823
+Epoch  47: Loss=3.9230  Train=97.62%  Test=20.50%
+  bird  acc=11.00%  gates: rot=0.002  ref=0.807
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.823
+Epoch  48: Loss=2.8816  Train=97.62%  Test=21.00%
+  bird  acc=12.00%  gates: rot=0.002  ref=0.812
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.827
+Epoch  49: Loss=3.5962  Train=98.38%  Test=20.50%
+  bird  acc=12.00%  gates: rot=0.001  ref=0.815
+  MNIST acc=29.00%  gates: rot=0.001  ref=0.828
+Epoch  50: Loss=2.7583  Train=98.50%  Test=19.00%
+  bird  acc=8.00%  gates: rot=0.002  ref=0.811
+  MNIST acc=30.00%  gates: rot=0.001  ref=0.830
+Using downloaded and verified file: ./data/train_32x32.mat
+Using downloaded and verified file: ./data/test_32x32.mat
+[svhn+mnist] train 60000 (30000 SVHN + 30000 MNIST) | test 10000 (5000 SVHN + 5000 MNIST)
+  MNIST train augmentation: random 90° rotations (teaches invariance)
+  SVHN  train augmentation: none (preserves orientation sensitivity)
+[birds] 10 classes | train 400 | test 100
+[multiclass] train 800 (400 birds / 400 digits) | test 200 (100 birds / 100 digits) | 10 bird classes
+Model  : multi_gated_d4_resnet  (D4ResNetBackbone)
+Device : cuda
+Epochs : 50  |  Batch: 64  |  LR: 0.0001
+Rotate test: False  |  Reflect test: False
+------------------------------------------------------------
+Starting training...
+  [gates] svhn:  rot=0.486 ref=0.501 | mnist: rot=0.492 ref=0.513
+Epoch   1: Loss=60.2892  Train=13.88%  Test=11.00%
+  bird  acc=12.00%  gates: rot=0.652  ref=0.518
+  MNIST acc=10.00%  gates: rot=0.719  ref=0.502
+Epoch   2: Loss=55.4050  Train=24.00%  Test=19.50%
+  bird  acc=9.00%  gates: rot=0.576  ref=0.556
+  MNIST acc=30.00%  gates: rot=0.630  ref=0.530
+Epoch   3: Loss=51.1145  Train=30.50%  Test=23.50%
+  bird  acc=14.00%  gates: rot=0.499  ref=0.584
+  MNIST acc=33.00%  gates: rot=0.547  ref=0.555
+Epoch   4: Loss=48.6597  Train=33.50%  Test=30.50%
+  bird  acc=10.00%  gates: rot=0.469  ref=0.596
+  MNIST acc=51.00%  gates: rot=0.509  ref=0.593
+Epoch   5: Loss=45.9264  Train=40.25%  Test=21.50%
+  bird  acc=20.00%  gates: rot=0.430  ref=0.565
+  MNIST acc=23.00%  gates: rot=0.424  ref=0.580
+  [gates] svhn:  rot=0.417 ref=0.568 | mnist: rot=0.380 ref=0.574
+Epoch   6: Loss=42.5700  Train=43.62%  Test=36.50%
+  bird  acc=11.00%  gates: rot=0.284  ref=0.586
+  MNIST acc=62.00%  gates: rot=0.134  ref=0.586
+Epoch   7: Loss=38.3921  Train=48.75%  Test=44.00%
+  bird  acc=14.00%  gates: rot=0.295  ref=0.577
+  MNIST acc=74.00%  gates: rot=0.120  ref=0.595
+Epoch   8: Loss=34.4737  Train=56.00%  Test=44.00%
+  bird  acc=11.00%  gates: rot=0.243  ref=0.603
+  MNIST acc=77.00%  gates: rot=0.068  ref=0.634
+Epoch   9: Loss=32.4362  Train=59.88%  Test=45.00%
+  bird  acc=13.00%  gates: rot=0.186  ref=0.606
+  MNIST acc=77.00%  gates: rot=0.018  ref=0.661
+Epoch  10: Loss=29.2250  Train=62.25%  Test=37.00%
+  bird  acc=16.00%  gates: rot=0.172  ref=0.608
+  MNIST acc=58.00%  gates: rot=0.034  ref=0.675
+  [gates] svhn:  rot=0.156 ref=0.610 | mnist: rot=0.029 ref=0.679
+Epoch  11: Loss=26.6251  Train=67.00%  Test=51.00%
+  bird  acc=16.00%  gates: rot=0.125  ref=0.609
+  MNIST acc=86.00%  gates: rot=0.010  ref=0.661
+Epoch  12: Loss=25.1545  Train=70.00%  Test=54.50%
+  bird  acc=17.00%  gates: rot=0.108  ref=0.622
+  MNIST acc=92.00%  gates: rot=0.021  ref=0.664
+Epoch  13: Loss=23.8763  Train=71.50%  Test=50.00%
+  bird  acc=13.00%  gates: rot=0.079  ref=0.626
+  MNIST acc=87.00%  gates: rot=0.011  ref=0.679
+Epoch  14: Loss=22.7408  Train=71.88%  Test=51.00%
+  bird  acc=16.00%  gates: rot=0.061  ref=0.619
+  MNIST acc=86.00%  gates: rot=0.007  ref=0.667
+Epoch  15: Loss=22.6653  Train=73.25%  Test=52.00%
+  bird  acc=14.00%  gates: rot=0.048  ref=0.624
+  MNIST acc=90.00%  gates: rot=0.006  ref=0.672
+  [gates] svhn:  rot=0.049 ref=0.618 | mnist: rot=0.006 ref=0.673
+Epoch  16: Loss=21.5884  Train=75.50%  Test=51.00%
+  bird  acc=14.00%  gates: rot=0.044  ref=0.614
+  MNIST acc=88.00%  gates: rot=0.004  ref=0.666
+Epoch  17: Loss=20.4341  Train=76.38%  Test=54.00%
+  bird  acc=19.00%  gates: rot=0.028  ref=0.566
+  MNIST acc=89.00%  gates: rot=0.002  ref=0.597
+Epoch  18: Loss=19.8781  Train=76.00%  Test=54.50%
+  bird  acc=19.00%  gates: rot=0.030  ref=0.519
+  MNIST acc=90.00%  gates: rot=0.003  ref=0.519
+Epoch  19: Loss=19.3652  Train=76.62%  Test=46.00%
+  bird  acc=16.00%  gates: rot=0.028  ref=0.483
+  MNIST acc=76.00%  gates: rot=0.004  ref=0.457
+Epoch  20: Loss=17.4030  Train=80.12%  Test=49.50%
+  bird  acc=18.00%  gates: rot=0.018  ref=0.386
+  MNIST acc=81.00%  gates: rot=0.001  ref=0.307
+  [gates] svhn:  rot=0.020 ref=0.412 | mnist: rot=0.002 ref=0.340
+Epoch  21: Loss=15.8221  Train=84.00%  Test=50.00%
+  bird  acc=18.00%  gates: rot=0.019  ref=0.377
+  MNIST acc=82.00%  gates: rot=0.004  ref=0.328
+Epoch  22: Loss=14.7599  Train=85.12%  Test=52.50%
+  bird  acc=14.00%  gates: rot=0.012  ref=0.323
+  MNIST acc=91.00%  gates: rot=0.002  ref=0.269
+Epoch  23: Loss=14.7666  Train=84.75%  Test=44.50%
+  bird  acc=17.00%  gates: rot=0.012  ref=0.316
+  MNIST acc=72.00%  gates: rot=0.003  ref=0.283
+Epoch  24: Loss=13.7845  Train=85.50%  Test=52.50%
+  bird  acc=15.00%  gates: rot=0.007  ref=0.268
+  MNIST acc=90.00%  gates: rot=0.001  ref=0.221
+Epoch  25: Loss=13.3565  Train=86.88%  Test=46.00%
+  bird  acc=18.00%  gates: rot=0.008  ref=0.243
+  MNIST acc=74.00%  gates: rot=0.001  ref=0.161
+  [gates] svhn:  rot=0.011 ref=0.256 | mnist: rot=0.001 ref=0.194
+Epoch  26: Loss=12.6874  Train=87.75%  Test=55.00%
+  bird  acc=18.00%  gates: rot=0.008  ref=0.238
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.201
+Epoch  27: Loss=11.8033  Train=87.88%  Test=56.50%
+  bird  acc=18.00%  gates: rot=0.007  ref=0.207
+  MNIST acc=95.00%  gates: rot=0.001  ref=0.160
+Epoch  28: Loss=11.8084  Train=88.75%  Test=53.50%
+  bird  acc=15.00%  gates: rot=0.006  ref=0.203
+  MNIST acc=92.00%  gates: rot=0.002  ref=0.173
+Epoch  29: Loss=10.6279  Train=90.38%  Test=48.00%
+  bird  acc=16.00%  gates: rot=0.005  ref=0.163
+  MNIST acc=80.00%  gates: rot=0.001  ref=0.126
+Epoch  30: Loss=10.3976  Train=91.12%  Test=53.50%
+  bird  acc=17.00%  gates: rot=0.005  ref=0.161
+  MNIST acc=90.00%  gates: rot=0.002  ref=0.144
+  [gates] svhn:  rot=0.004 ref=0.138 | mnist: rot=0.001 ref=0.119
+Epoch  31: Loss=9.9985  Train=91.25%  Test=54.50%
+  bird  acc=17.00%  gates: rot=0.004  ref=0.138
+  MNIST acc=92.00%  gates: rot=0.001  ref=0.107
+Epoch  32: Loss=8.5511  Train=92.38%  Test=53.50%
+  bird  acc=15.00%  gates: rot=0.004  ref=0.133
+  MNIST acc=92.00%  gates: rot=0.001  ref=0.087
+Epoch  33: Loss=9.5235  Train=92.00%  Test=54.00%
+  bird  acc=14.00%  gates: rot=0.003  ref=0.127
+  MNIST acc=94.00%  gates: rot=0.001  ref=0.104
+Epoch  34: Loss=8.6497  Train=94.12%  Test=54.50%
+  bird  acc=17.00%  gates: rot=0.003  ref=0.124
+  MNIST acc=92.00%  gates: rot=0.001  ref=0.096
+Epoch  35: Loss=8.4119  Train=92.62%  Test=56.00%
+  bird  acc=17.00%  gates: rot=0.003  ref=0.111
+  MNIST acc=95.00%  gates: rot=0.001  ref=0.081
+  [gates] svhn:  rot=0.002 ref=0.102 | mnist: rot=0.001 ref=0.083
+Epoch  36: Loss=8.1699  Train=93.50%  Test=53.50%
+  bird  acc=14.00%  gates: rot=0.003  ref=0.110
+  MNIST acc=93.00%  gates: rot=0.001  ref=0.090
+Epoch  37: Loss=7.0192  Train=95.62%  Test=55.00%
+  bird  acc=16.00%  gates: rot=0.003  ref=0.097
+  MNIST acc=94.00%  gates: rot=0.001  ref=0.071
+Epoch  38: Loss=8.3352  Train=93.75%  Test=54.00%
+  bird  acc=15.00%  gates: rot=0.003  ref=0.094
+  MNIST acc=93.00%  gates: rot=0.001  ref=0.079
+Epoch  39: Loss=6.7560  Train=94.50%  Test=52.00%
+  bird  acc=13.00%  gates: rot=0.003  ref=0.091
+  MNIST acc=91.00%  gates: rot=0.001  ref=0.071
+Epoch  40: Loss=6.7840  Train=95.38%  Test=51.50%
+  bird  acc=12.00%  gates: rot=0.002  ref=0.089
+  MNIST acc=91.00%  gates: rot=0.001  ref=0.077
+  [gates] svhn:  rot=0.002 ref=0.075 | mnist: rot=0.001 ref=0.065
+Epoch  41: Loss=6.9615  Train=93.62%  Test=55.50%
+  bird  acc=17.00%  gates: rot=0.002  ref=0.082
+  MNIST acc=94.00%  gates: rot=0.001  ref=0.064
+Epoch  42: Loss=6.1380  Train=95.50%  Test=51.50%
+  bird  acc=11.00%  gates: rot=0.002  ref=0.084
+  MNIST acc=92.00%  gates: rot=0.001  ref=0.069
+Epoch  43: Loss=6.0981  Train=96.00%  Test=53.00%
+  bird  acc=13.00%  gates: rot=0.002  ref=0.081
+  MNIST acc=93.00%  gates: rot=0.001  ref=0.063
+Epoch  44: Loss=5.7367  Train=96.88%  Test=53.00%
+  bird  acc=14.00%  gates: rot=0.002  ref=0.076
+  MNIST acc=92.00%  gates: rot=0.001  ref=0.065
+Epoch  45: Loss=6.6530  Train=95.38%  Test=53.50%
+  bird  acc=13.00%  gates: rot=0.002  ref=0.072
+  MNIST acc=94.00%  gates: rot=0.001  ref=0.059
+  [gates] svhn:  rot=0.001 ref=0.056 | mnist: rot=0.001 ref=0.069
+Epoch  46: Loss=6.4095  Train=95.00%  Test=52.50%
+  bird  acc=12.00%  gates: rot=0.002  ref=0.071
+  MNIST acc=93.00%  gates: rot=0.001  ref=0.060
+Epoch  47: Loss=6.1240  Train=95.50%  Test=53.00%
+  bird  acc=13.00%  gates: rot=0.002  ref=0.073
+  MNIST acc=93.00%  gates: rot=0.001  ref=0.060
+Epoch  48: Loss=6.1063  Train=95.38%  Test=52.00%
+  bird  acc=13.00%  gates: rot=0.002  ref=0.068
+  MNIST acc=91.00%  gates: rot=0.001  ref=0.057
+Epoch  49: Loss=5.1422  Train=97.25%  Test=52.50%
+  bird  acc=12.00%  gates: rot=0.002  ref=0.068
+  MNIST acc=93.00%  gates: rot=0.001  ref=0.061
+Epoch  50: Loss=5.2984  Train=96.38%  Test=53.50%
+  bird  acc=13.00%  gates: rot=0.002  ref=0.064
+  MNIST acc=94.00%  gates: rot=0.001  ref=0.049
+Using downloaded and verified file: ./data/train_32x32.mat
+Using downloaded and verified file: ./data/test_32x32.mat
+[svhn+mnist] train 60000 (30000 SVHN + 30000 MNIST) | test 10000 (5000 SVHN + 5000 MNIST)
+  MNIST train augmentation: random 90° rotations (teaches invariance)
+  SVHN  train augmentation: none (preserves orientation sensitivity)
+[birds] 10 classes | train 400 | test 100
+[multiclass] train 800 (400 birds / 400 digits) | test 200 (100 birds / 100 digits) | 10 bird classes
+Model  : multi_gated_d4_resnet  (D4ResNetBackbone)
+Device : cuda
+Epochs : 50  |  Batch: 64  |  LR: 0.0001
+Rotate test: True  |  Reflect test: False
+------------------------------------------------------------
+Starting training...
+  [gates] svhn:  rot=0.544 ref=0.435 | mnist: rot=0.527 ref=0.441
+Epoch   1: Loss=60.3282  Train=14.38%  Test=11.00%
+  bird  acc=11.00%  gates: rot=0.401  ref=0.494
+  MNIST acc=11.00%  gates: rot=0.398  ref=0.560
+Epoch   2: Loss=53.7905  Train=24.75%  Test=20.00%
+  bird  acc=13.00%  gates: rot=0.554  ref=0.510
+  MNIST acc=27.00%  gates: rot=0.628  ref=0.579
+Epoch   3: Loss=50.0638  Train=31.00%  Test=19.00%
+  bird  acc=13.00%  gates: rot=0.458  ref=0.468
+  MNIST acc=25.00%  gates: rot=0.459  ref=0.512
+Epoch   4: Loss=46.3065  Train=42.75%  Test=15.50%
+  bird  acc=13.00%  gates: rot=0.275  ref=0.467
+  MNIST acc=18.00%  gates: rot=0.199  ref=0.452
+Epoch   5: Loss=41.7305  Train=46.88%  Test=14.50%
+  bird  acc=18.00%  gates: rot=0.165  ref=0.462
+  MNIST acc=11.00%  gates: rot=0.055  ref=0.444
+  [gates] svhn:  rot=0.187 ref=0.490 | mnist: rot=0.064 ref=0.431
+Epoch   6: Loss=37.8448  Train=51.12%  Test=15.50%
+  bird  acc=15.00%  gates: rot=0.151  ref=0.451
+  MNIST acc=16.00%  gates: rot=0.050  ref=0.414
+Epoch   7: Loss=34.8773  Train=55.12%  Test=9.50%
+  bird  acc=13.00%  gates: rot=0.126  ref=0.462
+  MNIST acc=6.00%  gates: rot=0.026  ref=0.438
+Epoch   8: Loss=32.5397  Train=60.00%  Test=12.00%
+  bird  acc=15.00%  gates: rot=0.129  ref=0.451
+  MNIST acc=9.00%  gates: rot=0.010  ref=0.408
+Epoch   9: Loss=29.7068  Train=63.25%  Test=9.00%
+  bird  acc=12.00%  gates: rot=0.107  ref=0.468
+  MNIST acc=6.00%  gates: rot=0.013  ref=0.441
+Epoch  10: Loss=28.3674  Train=65.00%  Test=10.00%
+  bird  acc=13.00%  gates: rot=0.117  ref=0.456
+  MNIST acc=7.00%  gates: rot=0.009  ref=0.402
+  [gates] svhn:  rot=0.113 ref=0.471 | mnist: rot=0.012 ref=0.426
+Epoch  11: Loss=25.3677  Train=70.50%  Test=10.00%
+  bird  acc=13.00%  gates: rot=0.094  ref=0.463
+  MNIST acc=7.00%  gates: rot=0.012  ref=0.421
+Epoch  12: Loss=23.0219  Train=74.00%  Test=9.50%
+  bird  acc=13.00%  gates: rot=0.082  ref=0.462
+  MNIST acc=6.00%  gates: rot=0.014  ref=0.439
+Epoch  13: Loss=21.2828  Train=75.62%  Test=14.00%
+  bird  acc=15.00%  gates: rot=0.069  ref=0.450
+  MNIST acc=13.00%  gates: rot=0.011  ref=0.402
+Epoch  14: Loss=20.3852  Train=77.00%  Test=13.00%
+  bird  acc=14.00%  gates: rot=0.055  ref=0.446
+  MNIST acc=12.00%  gates: rot=0.007  ref=0.413
+Epoch  15: Loss=19.6146  Train=78.62%  Test=13.00%
+  bird  acc=18.00%  gates: rot=0.037  ref=0.451
+  MNIST acc=8.00%  gates: rot=0.006  ref=0.419
+  [gates] svhn:  rot=0.038 ref=0.456 | mnist: rot=0.006 ref=0.403
+Epoch  16: Loss=18.4842  Train=79.88%  Test=12.00%
+  bird  acc=15.00%  gates: rot=0.037  ref=0.430
+  MNIST acc=9.00%  gates: rot=0.005  ref=0.363
+Epoch  17: Loss=18.0028  Train=79.88%  Test=14.00%
+  bird  acc=13.00%  gates: rot=0.033  ref=0.446
+  MNIST acc=15.00%  gates: rot=0.006  ref=0.401
+Epoch  18: Loss=16.6289  Train=83.12%  Test=13.50%
+  bird  acc=17.00%  gates: rot=0.029  ref=0.432
+  MNIST acc=10.00%  gates: rot=0.008  ref=0.422
+Epoch  19: Loss=15.5970  Train=83.88%  Test=17.00%
+  bird  acc=16.00%  gates: rot=0.026  ref=0.434
+  MNIST acc=18.00%  gates: rot=0.005  ref=0.391
+Epoch  20: Loss=14.2395  Train=85.50%  Test=11.50%
+  bird  acc=13.00%  gates: rot=0.023  ref=0.420
+  MNIST acc=10.00%  gates: rot=0.002  ref=0.358
+  [gates] svhn:  rot=0.028 ref=0.432 | mnist: rot=0.003 ref=0.398
+Epoch  21: Loss=14.2575  Train=86.38%  Test=17.50%
+  bird  acc=15.00%  gates: rot=0.030  ref=0.425
+  MNIST acc=20.00%  gates: rot=0.008  ref=0.401
+Epoch  22: Loss=12.0739  Train=89.75%  Test=13.00%
+  bird  acc=15.00%  gates: rot=0.025  ref=0.425
+  MNIST acc=11.00%  gates: rot=0.006  ref=0.408
+Epoch  23: Loss=12.0302  Train=90.38%  Test=15.50%
+  bird  acc=15.00%  gates: rot=0.014  ref=0.406
+  MNIST acc=16.00%  gates: rot=0.005  ref=0.374
+Epoch  24: Loss=11.1490  Train=90.75%  Test=17.00%
+  bird  acc=20.00%  gates: rot=0.018  ref=0.422
+  MNIST acc=14.00%  gates: rot=0.007  ref=0.429
+Epoch  25: Loss=11.0662  Train=92.00%  Test=14.00%
+  bird  acc=14.00%  gates: rot=0.015  ref=0.416
+  MNIST acc=14.00%  gates: rot=0.005  ref=0.405
+  [gates] svhn:  rot=0.014 ref=0.414 | mnist: rot=0.004 ref=0.413
+Epoch  26: Loss=9.5551  Train=92.00%  Test=11.00%
+  bird  acc=12.00%  gates: rot=0.010  ref=0.411
+  MNIST acc=10.00%  gates: rot=0.004  ref=0.375
+Epoch  27: Loss=9.3736  Train=91.88%  Test=15.00%
+  bird  acc=15.00%  gates: rot=0.008  ref=0.377
+  MNIST acc=15.00%  gates: rot=0.002  ref=0.324
+Epoch  28: Loss=9.2202  Train=92.38%  Test=16.00%
+  bird  acc=16.00%  gates: rot=0.010  ref=0.388
+  MNIST acc=16.00%  gates: rot=0.006  ref=0.377
+Epoch  29: Loss=9.5605  Train=91.12%  Test=16.50%
+  bird  acc=15.00%  gates: rot=0.010  ref=0.354
+  MNIST acc=18.00%  gates: rot=0.004  ref=0.316
+Epoch  30: Loss=7.6882  Train=94.62%  Test=17.50%
+  bird  acc=20.00%  gates: rot=0.010  ref=0.342
+  MNIST acc=15.00%  gates: rot=0.005  ref=0.319
+  [gates] svhn:  rot=0.008 ref=0.337 | mnist: rot=0.003 ref=0.349
+Epoch  31: Loss=7.2334  Train=95.00%  Test=13.00%
+  bird  acc=14.00%  gates: rot=0.008  ref=0.328
+  MNIST acc=12.00%  gates: rot=0.004  ref=0.305
+Epoch  32: Loss=6.3094  Train=96.50%  Test=12.00%
+  bird  acc=13.00%  gates: rot=0.007  ref=0.311
+  MNIST acc=11.00%  gates: rot=0.004  ref=0.296
+Epoch  33: Loss=6.3545  Train=95.75%  Test=14.00%
+  bird  acc=14.00%  gates: rot=0.007  ref=0.314
+  MNIST acc=14.00%  gates: rot=0.006  ref=0.326
+Epoch  34: Loss=6.6253  Train=95.88%  Test=14.50%
+  bird  acc=12.00%  gates: rot=0.005  ref=0.280
+  MNIST acc=17.00%  gates: rot=0.003  ref=0.243
+Epoch  35: Loss=6.3546  Train=94.50%  Test=15.00%
+  bird  acc=15.00%  gates: rot=0.006  ref=0.301
+  MNIST acc=15.00%  gates: rot=0.004  ref=0.312
+  [gates] svhn:  rot=0.004 ref=0.293 | mnist: rot=0.004 ref=0.297
+Epoch  36: Loss=5.8052  Train=95.62%  Test=16.00%
+  bird  acc=17.00%  gates: rot=0.004  ref=0.277
+  MNIST acc=15.00%  gates: rot=0.003  ref=0.250
+Epoch  37: Loss=6.1052  Train=95.62%  Test=13.50%
+  bird  acc=14.00%  gates: rot=0.005  ref=0.278
+  MNIST acc=13.00%  gates: rot=0.005  ref=0.293
+Epoch  38: Loss=5.3626  Train=96.38%  Test=13.00%
+  bird  acc=11.00%  gates: rot=0.004  ref=0.259
+  MNIST acc=15.00%  gates: rot=0.003  ref=0.251
+Epoch  39: Loss=5.1248  Train=96.25%  Test=16.50%
+  bird  acc=19.00%  gates: rot=0.005  ref=0.267
+  MNIST acc=14.00%  gates: rot=0.004  ref=0.262
+Epoch  40: Loss=4.6277  Train=97.38%  Test=14.00%
+  bird  acc=16.00%  gates: rot=0.004  ref=0.258
+  MNIST acc=12.00%  gates: rot=0.004  ref=0.248
+  [gates] svhn:  rot=0.004 ref=0.259 | mnist: rot=0.004 ref=0.266
+Epoch  41: Loss=5.6241  Train=96.25%  Test=16.50%
+  bird  acc=18.00%  gates: rot=0.004  ref=0.249
+  MNIST acc=15.00%  gates: rot=0.004  ref=0.257
+Epoch  42: Loss=4.9059  Train=97.38%  Test=16.50%
+  bird  acc=17.00%  gates: rot=0.004  ref=0.254
+  MNIST acc=16.00%  gates: rot=0.004  ref=0.267
+Epoch  43: Loss=4.4423  Train=97.12%  Test=14.00%
+  bird  acc=17.00%  gates: rot=0.003  ref=0.240
+  MNIST acc=11.00%  gates: rot=0.003  ref=0.240
+Epoch  44: Loss=3.8257  Train=98.12%  Test=16.00%
+  bird  acc=17.00%  gates: rot=0.004  ref=0.243
+  MNIST acc=15.00%  gates: rot=0.004  ref=0.253
+Epoch  45: Loss=4.5095  Train=96.88%  Test=15.50%
+  bird  acc=16.00%  gates: rot=0.003  ref=0.236
+  MNIST acc=15.00%  gates: rot=0.004  ref=0.243
+  [gates] svhn:  rot=0.002 ref=0.233 | mnist: rot=0.003 ref=0.257
+Epoch  46: Loss=4.3604  Train=96.50%  Test=14.00%
+  bird  acc=16.00%  gates: rot=0.003  ref=0.234
+  MNIST acc=12.00%  gates: rot=0.004  ref=0.247
+Epoch  47: Loss=3.8683  Train=97.50%  Test=15.00%
+  bird  acc=15.00%  gates: rot=0.004  ref=0.230
+  MNIST acc=15.00%  gates: rot=0.004  ref=0.233
+Epoch  48: Loss=3.9820  Train=98.00%  Test=15.50%
+  bird  acc=16.00%  gates: rot=0.003  ref=0.231
+  MNIST acc=15.00%  gates: rot=0.004  ref=0.250
+Epoch  49: Loss=3.9529  Train=98.38%  Test=14.50%
+  bird  acc=16.00%  gates: rot=0.003  ref=0.223
+  MNIST acc=13.00%  gates: rot=0.003  ref=0.226
+Epoch  50: Loss=4.1850  Train=97.25%  Test=14.00%
+  bird  acc=16.00%  gates: rot=0.004  ref=0.225
+  MNIST acc=12.00%  gates: rot=0.003  ref=0.233

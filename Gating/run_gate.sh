@@ -27,17 +27,40 @@ export PYTHONPATH=$PYTHONPATH:$(pwd)
 # python gating_main.py -m multi_gated_d4 -e 50 -bs 64 -lr 1e-4
 # python gating_main.py -m multi_gated_d4 -e 50 -bs 64 -lr 1e-4 --rotate_images
 
-# python Gating/gating_main.py -m multi_gated_c4_resnet -e 50 -bs 64 -lr 1e-4
-# python Gating/gating_main.py -m multi_gated_c4_resnet -e 50 -bs 64 -lr 1e-4 --rotate_images
+# python Gating/gating_main.py -m multi_gated_c4_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_c4_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images
 
-# python Gating/gating_main.py -m multi_gated_d4_resnet -e 50 -bs 64 -lr 1e-4
-# python Gating/gating_main.py -m multi_gated_d4_resnet -e 50 -bs 64 -lr 1e-4 --rotate_images
+# python Gating/gating_main.py -m multi_gated_d4_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_d4_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images
 
-# python Gating/gating_main.py -m multi_gated_steerable -d svhn -e 50 -bs 64 -lr 1e-4
-# python Gating/gating_main.py -m multi_gated_steerable -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images 
+# python Gating/gating_main.py -m multi_gated_steerable --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_steerable --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images 
 
-# python Gating/gating_main.py -m multi_gated_c4_resnet  -d bird -e 50 -bs 64 -lr 1e-4
-python Gating/gating_main.py -m multi_gated_c4_resnet  -d bird -e 50 -bs 64 -lr 1e-4 --rotate_images
+# python Gating/gating_main.py -m multi_gated_c4_resnet  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_c4_resnet  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4 --rotate_images
 
-# python Gating/gating_main.py -m multi_gated_d4_resnet  -d bird -e 50 -bs 64 -lr 1e-4
-# python Gating/gating_main.py -m multi_gated_d4_resnet  -d bird -e 50 -bs 64 -lr 1e-4 --rotate_images
+# python Gating/gating_main.py -m multi_gated_d4_resnet  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_d4_resnet  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4 --rotate_images
+
+# python Gating/gating_main.py -m multi_gated_steerable --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_steerable --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4 --rotate_images 
+
+# python -c "print('bird with frozen and learnable gates')"
+# python Gating/gating_main.py -m c4_tsbn  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m c4_tsbn  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-4 --rotate_images
+# python Gating/gating_main.py -m c4_tsbn  --gate_cls learnable -d bird -e 50 -bs 64 -lr 1e-3 --rotate_images --reflect_images
+
+
+# python Gating/gating_main.py -m plain_resnet --gate_cls none -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m plain_resnet --gate_cls none -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images
+
+# python Gating/gating_main.py -m multi_gated_d4_resnet --gate_cls none -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_d4_resnet --gate_cls none -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images
+
+# python Gating/gating_main.py -m plain_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m plain_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images
+
+# python Gating/gating_main.py -m multi_gated_d4_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4
+# python Gating/gating_main.py -m multi_gated_d4_resnet --gate_cls learnable -d svhn -e 50 -bs 64 -lr 1e-4 --rotate_images
+
+ 

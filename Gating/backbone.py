@@ -8,10 +8,47 @@ from C4GroupConv import C4GroupConv
 from D4Block import D4Block
 from D4GroupConv import D4GroupConv
 
+class TaskSpecificBN(nn.Module):
+    def __init__(self, num_features: int, num_tasks: int = 2):
+        super().__init__()
+        self.bns = nn.ModuleList([nn.BatchNorm2d(num_features) for _ in range(num_tasks)])
+
+    def forward(self, x: torch.Tensor, task_idx: int) -> torch.Tensor:
+        return self.bns[task_idx](x)
+
 # Removing classifier has it is implemented in MultiGatedCNN and not needed in the backbone. 
 # Also, it is not used in the D4InvariantResNet backbone, so for consistency we remove it from both backbones. \
 # The classifier will be implemented in the MultiGatedCNN class instead, 
 # which will allow us to easily swap out different backbones without needing to modify the classifier code.
+class PlainResNetBackbone(nn.Module):
+    """
+    Standard ResNet-34, no group averaging.
+    Baseline: neither rotation equivariance nor D4 structure.
+
+    out_channels = 256
+    group_size   = 1   (no group — keeps MultiGatedCNN interface happy)
+    """
+    out_channels = 256
+    group_size   = 1
+
+    def __init__(self, in_channels: int = 3):
+        super().__init__()
+        backbone = models.resnet34(weights=None)
+        self.stem = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+        )
+        self.layer1 = backbone.layer1
+        self.layer2 = backbone.layer2
+        self.layer3 = backbone.layer3
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.stem(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)                                      # [B, 256, H, W]
+        return x                                                # group_size=1, no stacking
 
 class C4Backbone(nn.Module):
     """
@@ -39,6 +76,59 @@ class C4Backbone(nn.Module):
         x = self.pool2(self.block2(x))
         return self.block3(x)                   # [B, 512, H, W]
 
+class C4ResNetBackbone_TSBN(nn.Module):
+    """
+    C4 Reynolds averaging + task-specific BN on layer2/3.
+    Frozen stem+layer1 (low-level features stable across tasks).
+    Designed for small datasets like mnist_inaturalist.
+
+    out_channels = 256
+    group_size   = 4
+    """
+    out_channels = 256
+    group_size   = 4
+
+    def __init__(self, in_channels: int = 3, freeze_early: bool = True):
+        super().__init__()
+        backbone = models.resnet34(weights=None)
+
+        self.stem = nn.Sequential(
+            nn.Conv2d(in_channels, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+        )
+        self.layer1 = backbone.layer1   # 64  ch — will be frozen
+        self.layer2 = backbone.layer2   # 128 ch — task-specific BN
+        self.layer3 = backbone.layer3   # 256 ch — task-specific BN
+
+        # Task-specific BN on layers that carry task-discriminative features
+        self.tsbn2 = TaskSpecificBN(128, num_tasks=2)
+        self.tsbn3 = TaskSpecificBN(256, num_tasks=2)
+
+        if freeze_early:
+            for p in self.stem.parameters():    p.requires_grad = False
+            for p in self.layer1.parameters():  p.requires_grad = False
+
+    def get_c4_group(self, x):
+        return [torch.rot90(x, k=k, dims=[-2, -1]) for k in range(4)]
+
+    def _forward_single(self, x, task_idx: int):
+        x = self.stem(x)
+        x = self.layer1(x)
+        x = self.tsbn2(self.layer2(x), task_idx)
+        x = self.tsbn3(self.layer3(x), task_idx)
+        return x
+
+    def forward(self, x: torch.Tensor, task_idx: int = 0) -> torch.Tensor:
+        B = x.size(0)
+        combined = torch.cat(self.get_c4_group(x), dim=0)      # [4B, C, H, W]
+        feats    = self._forward_single(combined, task_idx)     # [4B, 256, H, W]
+
+        _, C_out, H, W = feats.size()
+        group_feats = feats.view(self.group_size, B, C_out, H, W)
+        group_feats = group_feats.permute(1, 0, 2, 3, 4)
+        return group_feats.reshape(B, self.group_size * C_out, H, W)
+    
 class D4Backbone(nn.Module):
     """
     D4-equivariant backbone: lift → 3 group conv blocks.
