@@ -125,7 +125,7 @@ def main():
         backbone_cls = D4ResNetBackbone
     elif args.model == 'multi_gated_steerable':
         steerable_resnet = SteerableResNet()
-        backbone_cls = lambda ic: SteerableBackbone(steerable_resnet)
+        backbone_cls = lambda in_channels=None: SteerableBackbone(steerable_resnet)
     elif args.model == 'c4_tsbn':
         backbone_cls = C4ResNetBackbone_TSBN
     elif args.model == 'plain_resnet':

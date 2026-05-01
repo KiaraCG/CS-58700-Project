@@ -18,10 +18,9 @@ class StandardCNNDualHead(nn.Module):
     """
 
     DATASET_CFG = {
-        'inaturalist_mnist': (3, (1, 64, 64)),
-        'mnist_svhn':        (3, (3, 32, 32)),
+        'inaturalist_mnist': (3, (3, 64, 64)),  # RGB 64×64 — in_channels and dummy shape must agree
+        'mnist_svhn':        (3, (3, 32, 32)),  # RGB 32×32
     }
-
     def __init__(self, dataset: str, num_bird_classes: int = 10, num_digit_classes: int = 10):
         super().__init__()
 

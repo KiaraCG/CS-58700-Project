@@ -267,19 +267,16 @@ class D4ResNetBackbone(nn.Module):
         group_elements = self.get_d4_group(x)           # 8 × [B, C, H, W]
  
         combined = torch.cat(group_elements, dim=0)     # [8B, C, H, W]
-        feats    = self._forward_single(combined)       # [8B, 256]
+        feats    = self._forward_single(combined)       # [8B, 256, H, W]
  
-        # Reynolds operator — mean over D4 orbit
-        # group_feats = feats.view(8, B, -1)              # [8, B, 256]
-        # return group_feats.mean(dim=0)                  # [B,  256]
-    
-    
         _, C_out, H, W = feats.size()
 
-        group_feats = feats.view(self.group_size, B, C_out, H, W)   # [8, B, 256, H, W]
-        group_feats = group_feats.permute(1, 0, 2, 3, 4)            # [B, 8, 256, H, W]
+        # [8, B, 256, H, W]
+        group_feats = feats.view(self.group_size, B, C_out, H, W)   
         
-        return group_feats.reshape(B, self.group_size * C_out, H, W)
+        # FIX: Actually apply the Reynolds operator (mean over the group orbit)
+        # Returns invariant shape: [B, 256, H, W]
+        return group_feats.mean(dim=0)
 
  
  

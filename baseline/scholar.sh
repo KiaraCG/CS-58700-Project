@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=4     # Number of CPU cores per MPI rank (change this if needed)
 #SBATCH --gres=gpu:1          # Use one GPU
 #SBATCH --mem-per-cpu=8G      # Required memory per GPU (specify how many GB)
-#SBATCH --time=1:00:00        # Total run time limit (hh:mm:ss)
+#SBATCH --time=3:00:00        # Total run time limit (hh:mm:ss)
 #SBATCH -J image              # Job name
 #SBATCH -o slurm_logs/%j      # Name of stdout output file
 
@@ -17,80 +17,14 @@ conda activate CS587
 
 # cd /home/shams3/CS-58700-Project/baseline
 
+# python main.py -d inaturalist_mnist -m standard_cnn -e 100
+# python main.py -d inaturalist_mnist -m standard_cnn -e 100 --rotate_images
 
+# python main.py -d inaturalist_mnist -m d4cnn -e 100
+# python main.py -d inaturalist_mnist -m d4cnn -e 100 --rotate_images
 
+python main.py -d mnist_svhn -m standard_cnn -e 100
+python main.py -d mnist_svhn -m standard_cnn -e 100 --rotate_images
 
-
-#440784
-# python main.py -m c4_invariant -d mnist -e 100 
-#440785
-# python main.py -m c4_invariant -d mnist -e 100 --rotate_images
-# 440615
-# python main.py -m c4_invariant -d colormnist -e 100
-#440616
-# python main.py -m c4_invariant -d colormnist -e 100 --rotate_images
-
-#440617
-# python main.py -m c4_invariant -d svhn -e 100
-#440618
-# python main.py -m c4_invariant -d svhn -e 100 --rotate_images
-
-# python main.py -m c4_invariant -d inaturalist_mnist -e 100 -bs 64 -lr 1e-3
-# python main.py -m c4_invariant -d inaturalist_mnist -e 100 -bs 64 -lr 1e-3  --rotate_images
-
-# python main.py -m c4_equivariant -d inaturalist_mnist -e 100 -bs 64 -lr 1e-3
-# python main.py -m c4_equivariant -d inaturalist_mnist -e 100  -bs 64 -lr 1e-3 --rotate_images
-
-# normal test
-# python main.py -m resnet -d inaturalist -e 30 -bs 64 -lr 1e-3
-
-# # rotated test
-# python main.py -m resnet -d inaturalist -e 30 -bs 64 -lr 1e-3 --rotate_images
-
-# # compare with C4
-# python main.py -m c4_invariant -d inaturalist -e 100 -bs 64 -lr 1e-3 
-# python main.py -m c4_invariant -d inaturalist -e 100 -bs 64  -lr 1e-3  --rotate_images
-
-# python main.py -m c4_equivariant -d inaturalist -e 100 -bs 64 -lr 1e-3
-# python main.py -m c4_equivariant -d inaturalist -e 100 -bs 64 -lr 1e-3 --rotate_images
-
-
-# python main.py -m standard_cnn -d mnist -e 100
-# python main.py -m standard_cnn -d mnist -e 100 --rotate_images
-
-# python main.py -m standard_cnn -d colormnist -e 100
-# python main.py -m standard_cnn -d colormnist -e 100 --rotate_images
-
-# python main.py -m standard_cnn -d svhn -e 100
-# python main.py -m standard_cnn -d svhn -e 100 --rotate_images   
-
-# python main.py -m standard_cnn -d inaturalist -e 100 -bs 64 -lr 1e-3
-# python main.py -m standard_cnn -d inaturalist -e 100 -bs 64 -lr 1e-3 --rotate_images
-
-python main.py -m standard_cnn -d inaturalist_mnist -e 100 -bs 64 -lr 1e-3
-python main.py -m standard_cnn -d inaturalist_mnist -e 100 -bs 64 -lr 1e-3 --rotate_images
-
-python main.py -m standard_cnn -d mnist_svhn -e 100
-python main.py -m standard_cnn -d mnist_svhn -e 100 --rotate_images
-
-# python main.py -m c4_invariant -d mnist_svhn -e 100
-# python main.py -m c4_invariant -d mnist_svhn -e 100 --rotate_images
-
-# python main.py -m c4_equivariant -d mnist_svhn -e 100
-# python main.py -m c4_equivariant -d mnist_svhn -e 100 --rotate_images
-
-# #440619
-# python main.py -m c4_equivariant -d mnist -e 100
-#440620
-# python main.py -m c4_equivariant -d mnist -e 100 --rotate_images
-#440621
-# python main.py -m c4_equivariant -d colormnist -e 100
-#440622
-# python main.py -m c4_equivariant -d colormnist -e 100 --rotate_images
-#440623
-# python main.py -m c4_equivariant -d svhn -e 100
-#440624
-# python main.py -m c4_equivariant -d svhn -e 100 --rotate_images
-
-
-# python main.py -m c4_equivariant -d inaturalist -e 100
+python main.py -d mnist_svhn -m d4cnn -e 100
+python main.py -d mnist_svhn -m d4cnn -e 100 --rotate_images

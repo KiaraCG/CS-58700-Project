@@ -37,10 +37,10 @@ def _d4_transform_weight(w: torch.Tensor, g: int) -> torch.Tensor:
     elif g == 2: return torch.rot90(w, 2, [2, 3])
     elif g == 3: return torch.rot90(w, 3, [2, 3])
     elif g == 4: return torch.flip(w, [3])
-    elif g == 5: return torch.rot90(torch.flip(w, [3]), 1, [2, 3])
-    elif g == 6: return torch.rot90(torch.flip(w, [3]), 2, [2, 3])
-    else:        return torch.rot90(torch.flip(w, [3]), 3, [2, 3])
-
+    # FIX: Apply rot90 FIRST, then flip to match the D4 algebra correctly
+    elif g == 5: return torch.flip(torch.rot90(w, 1, [2, 3]), [3])
+    elif g == 6: return torch.flip(torch.rot90(w, 2, [2, 3]), [3])
+    else:        return torch.flip(torch.rot90(w, 3, [2, 3]), [3])
 
 class D4GroupConv(nn.Module):
     """
@@ -60,11 +60,14 @@ class D4GroupConv(nn.Module):
         self.out_channels = out_channels
         self.kernel_size  = kernel_size
         self.padding      = padding
-        self.lifting      = lifting
+        self.lifting = lifting
 
-        self.weight = nn.Parameter(
-            torch.Tensor(out_channels, in_channels, kernel_size, kernel_size)
-        )
+        # FIX: Group-to-group conv requires weights for all 8 input orientations
+        if self.lifting:
+            self.weight = nn.Parameter(torch.Tensor(out_channels, in_channels, kernel_size, kernel_size))
+        else:
+            self.weight = nn.Parameter(torch.Tensor(out_channels, 8, in_channels, kernel_size, kernel_size))
+            
         nn.init.kaiming_normal_(self.weight)
 
     def _transformed_weights(self):
@@ -81,13 +84,23 @@ class D4GroupConv(nn.Module):
             return F.conv2d(x, weights, padding=self.padding)
 
         else:
-            # Build [8*out_ch, 8*in_ch, K, K] combined weight
-            # Row block g uses g-transformed filter, columns permuted by _D4_PERM[g]
-            O, I, K, _ = w.shape
+            # self.weight is [O, 8, I, K, K]
+            O, _, I, K, _ = self.weight.shape
             combined = torch.zeros(8*O, 8*I, K, K, device=x.device)
+            
             for g in range(8):
-                w_g  = _d4_transform_weight(w, g)           # [O, I, K, K]
                 perm = _D4_PERM[g]
-                for h, ph in enumerate(perm):
-                    combined[g*O:(g+1)*O, ph*I:(ph+1)*I] = w_g
+                for h in range(8):
+                    # ph represents g^{-1} * h
+                    ph = perm[h]  
+                    
+                    # Extract the specific filter block for this input orientation
+                    w_slice = self.weight[:, ph, :, :, :] # [O, I, K, K]
+                    
+                    # Transform it spatially by g
+                    w_g = _d4_transform_weight(w_slice, g)
+                    
+                    # Place it connecting input orientation h to output orientation g
+                    combined[g*O:(g+1)*O, h*I:(h+1)*I] = w_g
+                    
             return F.conv2d(x, combined, padding=self.padding)

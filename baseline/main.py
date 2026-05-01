@@ -10,6 +10,9 @@ import os
 from data.data_loaders import get_loaders
 from standard.StandardCNN import StandardCNN
 from standard.StandardCNNDualHead import StandardCNNDualHead
+from rotation.D4backbone import D4CNNDualHead
+from digits_mutliclass_loader import get_svhn_mnist_loaders
+from mulitclass_loader import get_multiclass_loaders
 
 from rotation.invariant.C4InvariantResNetBird import ResNetBirdsCNN
 from rotation.invariant.C4InvariantDigitsCNN import C4InvariantDigitsCNN
@@ -29,7 +32,7 @@ def get_arguments(argv):
                             'c4_equivariant',
                             'c4_invariant',
                             'standard_cnn',
-                            'resnet',
+                            'resnet', 'd4cnn'
                         ])
     parser.add_argument('-d', '--dataset', type=str, default='mnist',
                         choices=['mnist', 'svhn', 'colormnist', 'inaturalist', 'inaturalist_mnist','mnist_svhn'],
@@ -66,23 +69,24 @@ def evaluate(model, loader, device, n_classes=10, dataset=None, model_name=None)
         n_bird_classes = None
         total_classes  = n_classes
 
-    correct_per_class = [0] * total_classes
-    total_per_class   = [0] * total_classes
+    correct       = 0
+    total         = 0
+    correct_bird  = correct_digit = 0
+    total_bird    = total_digit   = 0
 
     with torch.no_grad():
         for batch in loader:
             if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
                 x, y, tasks = batch
-                n_bird_classes = 10
                 if args.dataset == 'mnist_svhn':
                     tasks = ["bird" if t == "mnist" else "digit" for t in tasks]
             else:
-                x, y = batch
+                x, y  = batch
                 tasks = None
 
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
 
-            if tasks is not None and args.model != 'standard_cnn':
+            if tasks is not None:
                 n_bird_classes = 10
                 out, bird_mask, digit_mask = model(x, tasks)
 
@@ -95,32 +99,23 @@ def evaluate(model, loader, device, n_classes=10, dataset=None, model_name=None)
                 y_offset = y.clone()
                 y_offset[digit_mask] += n_bird_classes
 
-            elif tasks is not None and args.model == 'standard_cnn':
-                out   = model(x)
-                preds = out.argmax(dim=1)
-
-                if args.dataset == 'inaturalist_mnist':
-                    digit_mask = torch.tensor([t == "digit" for t in tasks], device=device)
-                    y_offset   = y.clone()
-                    y_offset[digit_mask] += 10
-                else:
-                    y_offset = y
+                correct_bird  += preds[bird_mask].eq(y_offset[bird_mask]).sum().item()
+                total_bird    += bird_mask.sum().item()
+                correct_digit += preds[digit_mask].eq(y_offset[digit_mask]).sum().item()
+                total_digit   += digit_mask.sum().item()
 
             else:
                 out      = model(x)
                 preds    = out.argmax(dim=1)
                 y_offset = y
 
-            correct += (preds == y_offset).sum().item()
+            correct += preds.eq(y_offset).sum().item()
             total   += y.size(0)
-            
-            for i in range(len(y)):
-                label = y_offset[i].item()
-                total_per_class[label] += 1
-                if preds[i].item() == label:
-                    correct_per_class[label] += 1
 
-    return 100 * correct / total, correct_per_class, total_per_class
+    task_a = 100 * correct_bird  / total_bird  if total_bird  else 0.0
+    task_b = 100 * correct_digit / total_digit if total_digit else 0.0
+    return 100 * correct / total, task_a, task_b
+    # return 100 * correct / total, correct_per_class, total_per_class
 
 def test_equivariance(model, device):
     model.eval()
@@ -174,9 +169,15 @@ def test_equivariance_per_layer(model, device):
 def main():
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")  # 1. define device first
-    
-    train_loader, test_loader, in_channels, n_classes = get_loaders(args)
-
+        
+    if args.dataset == 'inaturalist_mnist':
+        train_loader, test_loader, n_classes = get_multiclass_loaders(args)
+        in_channels = 3
+    if args.dataset == 'mnist_svhn':
+        train_loader, test_loader, n_classes = get_svhn_mnist_loaders(args)
+        in_channels = 3
+    else:
+        train_loader, test_loader, in_channels, n_classes = get_loaders(args)
     print(f"Dataset : {args.dataset.upper()}")
     print(f"Model   : {args.model}")
     print(f"Device  : {device}")
@@ -231,11 +232,18 @@ def main():
     #         raise ValueError(f"Dataset {args.model} is not supported.")
     elif args.model == 'standard_cnn': 
         if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
+            print ("######################################################## ",args.dataset)
             model = StandardCNNDualHead(args.dataset).to(device)
         else:
             model = StandardCNN(args.dataset).to(device)
+
+    elif args.model == 'd4cnn':
+        if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
+            model = D4CNNDualHead(args.dataset).to(device)
+        else:
+            raise ValueError(f"D4CNNDualHead only supports dual-head datasets.")
     else:
-        raise ValueError(f"Model {args.model} is not supported. Should be one of ['v4cnn', 'standard_cnn'].")
+        raise ValueError(f"Model {args.model} is not supported.")
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)
@@ -267,52 +275,41 @@ def main():
         for batch in train_loader:
             if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
                 x, y, tasks = batch
-                n_bird_classes = 10
+                # Normalise task strings so both datasets use the same labels
                 if args.dataset == 'mnist_svhn':
                     tasks = ["bird" if t == "mnist" else "digit" for t in tasks]
             else:
-                x, y = batch
+                x, y  = batch
                 tasks = None
-                n_bird_classes = None
 
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
-
             optimizer.zero_grad(set_to_none=True)
 
-            if tasks is not None and args.model != 'standard_cnn':
-                n_bird_classes = 10
+            # ── Dual-head path (both standard_cnn and d4cnn share the same interface) ──
+            if tasks is not None:
+                n_bird_classes  = 10
+                n_digit_classes = 10
+
                 out, bird_mask, digit_mask = model(x, tasks)
 
-                # ── Loss: per-head, no offset, y is always 0–9 ──────────────
+                # Loss: each head sees labels 0-9 (no offset needed inside the head)
                 loss = torch.tensor(0.0, device=device)
                 if bird_mask.any():
-                    loss = loss + criterion(out[bird_mask, :n_bird_classes], y[bird_mask])
+                    loss = loss + criterion(out[bird_mask,  :n_bird_classes],  y[bird_mask])
                 if digit_mask.any():
-                    loss = loss + criterion(out[digit_mask, :n_bird_classes], y[digit_mask])
+                    loss = loss + criterion(out[digit_mask, :n_digit_classes], y[digit_mask])
 
-                # ── Predictions + offset only for accuracy bookkeeping ───────
+                # Predictions: bird stays 0-9, digit is offset to 10-19 for accuracy tracking
                 preds = torch.empty(x.size(0), dtype=torch.long, device=device)
                 if bird_mask.any():
                     preds[bird_mask]  = out[bird_mask,  :n_bird_classes].argmax(1)
                 if digit_mask.any():
-                    preds[digit_mask] = out[digit_mask, :n_bird_classes].argmax(1) + n_bird_classes
+                    preds[digit_mask] = out[digit_mask, :n_digit_classes].argmax(1) + n_bird_classes
 
                 y_offset = y.clone()
                 y_offset[digit_mask] += n_bird_classes
 
-            elif tasks is not None and args.model == 'standard_cnn':
-                out   = model(x)
-                preds = out.argmax(dim=1)
-
-                if args.dataset == 'inaturalist_mnist':
-                    digit_mask = torch.tensor([t == "digit" for t in tasks], device=device)
-                    y_offset   = y.clone()
-                    y_offset[digit_mask] += 10
-                else:
-                    y_offset = y
-
-                loss = criterion(out, y_offset)  # standard_cnn has 20 outputs, offset is correct
-
+            # ── Single-head path ────────────────────────────────────────────────────────
             else:
                 out      = model(x)
                 preds    = out.argmax(dim=1)
@@ -326,28 +323,42 @@ def main():
             total_loss    += loss.item()
             total_train   += y.size(0)
             correct_train += preds.eq(y_offset).sum().item()
-
             # add after first batch
             # print(f"y range: {y.min().item()} - {y.max().item()}")
             # print(f"y_offset range: {y_offset.min().item()} - {y_offset.max().item()}")
             # print(f"preds range: {preds.min().item()} - {preds.max().item()}")
 
         train_acc = 100. * correct_train / total_train
-        test_acc, correct_pc, total_pc = evaluate(
+        # test_acc, correct_pc, total_pc = evaluate(
+        #                             model, test_loader, device, n_classes,
+        #                             dataset=args.dataset, model_name=args.model   # ← add this
+        #                         )
+        # print(f"Epoch {epoch + 1:>3}: Loss={total_loss:.4f}  "
+        #       f"Train={train_acc:.2f}%  Test={test_acc:.2f}%")
+
+        # print("  Per-class accuracy:")
+        # n_print_classes = 20 if args.dataset == 'inaturalist_mnist' else n_classes
+        # for i in range(n_print_classes):
+        #     if total_pc[i] > 0:
+        #         acc = 100 * correct_pc[i] / total_pc[i]
+        #         print(f"    Class {i}: {acc:.2f}%  ({correct_pc[i]}/{total_pc[i]})")
+        #     else:
+        #         print(f"    Class {i}: N/A")
+        # Return signature changed — unpack accordingly
+        
+        test_acc, task_a_acc, task_b_acc = evaluate(
                                     model, test_loader, device, n_classes,
                                     dataset=args.dataset, model_name=args.model   # ← add this
                                 )
-        print(f"Epoch {epoch + 1:>3}: Loss={total_loss:.4f}  "
-              f"Train={train_acc:.2f}%  Test={test_acc:.2f}%")
 
-        print("  Per-class accuracy:")
-        n_print_classes = 20 if args.dataset == 'inaturalist_mnist' else n_classes
-        for i in range(n_print_classes):
-            if total_pc[i] > 0:
-                acc = 100 * correct_pc[i] / total_pc[i]
-                print(f"    Class {i}: {acc:.2f}%  ({correct_pc[i]}/{total_pc[i]})")
-            else:
-                print(f"    Class {i}: N/A")
+        if args.dataset in ['inaturalist_mnist', 'mnist_svhn']:
+            task_a_name = "bird " if args.dataset == 'inaturalist_mnist' else "svhn "
+            task_b_name = "mnist"
+            print(f"Epoch {epoch:3d}: Loss={total_loss:.4f}  Train={train_acc:.2f}%  Test={test_acc:.2f}%")
+            print(f"  {task_a_name} acc={task_a_acc:.2f}%")
+            print(f"  {task_b_name} acc={task_b_acc:.2f}%")
+        else:
+            print(f"Epoch {epoch:3d}: Loss={total_loss:.4f}  Train={train_acc:.2f}%  Test={test_acc:.2f}%")
         scheduler.step()
                 # ── Checkpointing ────────────────────────────────────────────────
         # ckpt = {
